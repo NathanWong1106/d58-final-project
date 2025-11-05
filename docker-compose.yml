@@ -1,0 +1,10 @@
+services:
+  mininet:
+    build: .
+    container_name: mininet-pox
+    privileged: true
+    volumes:
+      - .:/D58-FINAL-PROJECT
+    tty: true
+    stdin_open: true
+    network_mode: "bridge"
