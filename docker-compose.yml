@@ -5,6 +5,7 @@ services:
     privileged: true
     volumes:
       - .:/D58-FINAL-PROJECT
+      - /lib/modules:/lib/modules
     tty: true
     stdin_open: true
     network_mode: "bridge"
