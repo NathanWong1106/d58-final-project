@@ -6,11 +6,14 @@ import hashlib
 #TODO: support dynamic setup
 servers = [
     {"http": "http://10.0.1.1:8080",
-     "connections": 0},
+     "connections": 0,
+     "weight": 3},
     {"http": "http://10.0.1.2:8081",
-     "connections": 0},
+     "connections": 0,
+     "weight": 2},
     {"http": "http://10.0.1.3:8082",
-     "connections": 0}]
+     "connections": 0,
+     "weight": 1}]
 
 #TODO: support the dynamic switching of algorithms?
 class SelectionAlgo:
