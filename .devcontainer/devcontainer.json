@@ -1,0 +1,17 @@
+{
+  "name": "d58-final-project (mininet load balancer)",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "mininet",
+  "workspaceFolder": "/load_balancer",
+  "runServices": ["mininet"],
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python"
+      ]
+    }
+  },
+  "remoteUser": "root",
+  "postStartCommand": "chmod +x ./setup.sh && ./setup.sh || true"
+}

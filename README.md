@@ -1,10 +1,9 @@
 # d58-final-project
-Use ./setup.sh to start up pox
 
-Then do
 
-docker exec -it mininet-pox bash -c "mn --topo=single,3 --controller=remote,ip=127.0.0.1 --mac --switch=ovsk --link=tc"
+## Setup
+You'll want to have the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension installed on VSCode to make your life easier.
 
-to start up simple mininet topo
+After installing the extension, you can run the `> Dev Containers: Reopen in Container` command to open up `/load_balancer` in a VSCode instance attached to the container. This will also run `setup.sh` for you.
 
-POX support for python3 is experimental, might have to down grade if necessary
+To run the test topology, use `python3 test_topo.py` in the `/load_balancer` directory
