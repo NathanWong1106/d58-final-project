@@ -20,10 +20,19 @@ class SelectionAlgo:
 class RoundRobin(SelectionAlgo):
     def __init__(self):
         self.index = -1
+        self.server_list = []
         
     def select_server(self, servers, **kwargs):
-        self.index += 1
-        return servers[self.index % len(servers)]
+        # Build weighted server list
+        # Each server appears in list as many times as its
+        # Example: weights [3, 2, 1] -> [server1, server1, server1, server2, server2, server3]
+        if not self.server_list:
+            self.server_list = [server for server in servers 
+                               for _ in range(server.get("weight", 1))]
+        
+        # Cycle through the weighted list for each request
+        self.index = (self.index + 1) % len(self.server_list)
+        return self.server_list[self.index]
 
 class RandomSelection(SelectionAlgo):
     def select_server(self, servers, **kwargs):
@@ -31,8 +40,15 @@ class RandomSelection(SelectionAlgo):
     
 class LeastConnection(SelectionAlgo):
     def select_server(self, servers, **kwargs):
-        least = min(servers, key=lambda server: server["connections"])
-        return least
+        # Select server with lowest connections/weight ratio
+        def connection_ratio(server):
+            connections = server.get("connections", 0)
+            weight = server.get("weight", 1)
+            
+            # Return infinite ratio for invalid weights, or connections/weight otherwise
+            return float('inf') if weight <= 0 else connections / weight
+        
+        return min(servers, key=connection_ratio)
     
 #TODO: for dynamic server connections, requires consistent hashing using hash rings, also python hash intentionally randomizes so might need different hash
 class SimpleSourceIPHash(SelectionAlgo):
