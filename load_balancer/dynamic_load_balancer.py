@@ -22,7 +22,16 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         print(f'[LB] Forwarding request to {server}')
         
 
-        r = requests.get('http://' + server + ':8000' + self.path)
+        try:
+            r = requests.get('http://' + server + ':8000' + self.path, timeout=2.5)
+        except requests.exceptions.RequestException as e:
+            self.send_response(502)
+            self.end_headers()
+            self.wfile.write(b'Bad Gateway')
+            print(f'[LB] Error forwarding to {server}: {e}')
+            return
+        
+        
         self.send_response(r.status_code)
         for k, v in r.headers.items():
             if k.lower() not in ["content-encoding", "transfer-encoding"]:
