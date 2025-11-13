@@ -20,5 +20,6 @@ RUN apt update && apt install -y \
     openvswitch-switch openvswitch-testcontroller
 
 RUN pip3 install --no-cache-dir requests
+RUN pip3 install --no-cache-dir psutil
 
 CMD [ "/bin/bash" ]

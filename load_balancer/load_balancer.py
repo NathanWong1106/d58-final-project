@@ -16,11 +16,11 @@ servers = [
      "weight": 1}]
 
 #TODO: support the dynamic switching of algorithms?
-class SelectionAlgo:
+class StaticSelectionAlgo:
     def select_server(self, servers, **kwargs):
         raise NotImplementedError
     
-class RoundRobin(SelectionAlgo):
+class RoundRobin(StaticSelectionAlgo):
     def __init__(self):
         self.index = -1
         self.server_list = []
@@ -37,11 +37,11 @@ class RoundRobin(SelectionAlgo):
         self.index = (self.index + 1) % len(self.server_list)
         return self.server_list[self.index]
 
-class RandomSelection(SelectionAlgo):
+class RandomSelection(StaticSelectionAlgo):
     def select_server(self, servers, **kwargs):
         return random.choice(servers)
     
-class LeastConnection(SelectionAlgo):
+class LeastConnection(StaticSelectionAlgo):
     def select_server(self, servers, **kwargs):
         # Select server with lowest connections/weight ratio
         def connection_ratio(server):
@@ -54,10 +54,12 @@ class LeastConnection(SelectionAlgo):
         return min(servers, key=connection_ratio)
     
 #TODO: for dynamic server connections, requires consistent hashing using hash rings, also python hash intentionally randomizes so might need different hash
-class SimpleSourceIPHash(SelectionAlgo):
+class SimpleSourceIPHash(StaticSelectionAlgo):
     def select_server(self, servers, **kwargs):
         h = hashlib.md5(bytes(kwargs.get("source_ip"), "UTF-8"))
         return servers[abs(int(h.hexdigest(), 16)) % len(servers)]
+    
+
 
 #Choose algo
 algo = SimpleSourceIPHash()
