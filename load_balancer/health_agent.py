@@ -4,7 +4,7 @@ import json
 
 HEALTH_METRICS = {
     "cpu_usage": lambda: psutil.cpu_percent(interval=1),
-    "memory_usage": lambda: psutil.virtual_memory().percent
+    "memory_usage": lambda: psutil.virtual_memory().percent,
 }
 
 def get_system_health():

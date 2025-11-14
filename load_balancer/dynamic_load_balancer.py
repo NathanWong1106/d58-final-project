@@ -19,7 +19,13 @@ ResourceBased(servers=servers, selectionAlgo=algo)
 class ProxyHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         server = algo.select_server()
-        print(f'[LB] Forwarding request to {server}')
+        # print(f'[LB] Forwarding request to {server}')
+
+        if server is None:
+            self.send_response(503)
+            self.end_headers()
+            self.wfile.write(b'Service Unavailable')
+            return
         
 
         try:

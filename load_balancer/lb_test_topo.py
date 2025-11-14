@@ -71,6 +71,36 @@ class MultiClientMultiServer( Topo ):
 
         for server in servers:
           self.addLink( server, server_switch )
+
+class ResourceLimitedMultiClientMultiServer( Topo ):
+    """"Topology for N client and server all connected through LB encapsulated by switches.
+    
+    C1..CN - S1 - LB - S2 - S1...SN
+    
+    """
+
+    # pylint: disable=arguments-differ
+    def build( self, N_serv=3, N_clients=10, server_cpu=[], lb_cpu=1, **params ):
+        # Create switches and hosts 
+        servers = [ self.addHost( 's%s' % h, ip='10.0.1.%s/24' % h,
+                                  cpu=server_cpu[h-1] if h-1 < len(server_cpu) else 0.2, sched='cfs' )
+                  for h in irange( 1, N_serv ) ]
+        clients = [ self.addHost( 'c%s' % h, ip='10.0.0.%s/24' % h,
+                                  cpu=0.2,  sched='cfs' )
+                  for h in irange( 1, N_clients ) ]
+        lb = self.addHost('lb', ip='10.0.0.254/24', cpu=lb_cpu, sched='cfs')
+        client_switch = self.addSwitch('sw1')
+        server_switch = self.addSwitch('sw2')
+        
+        for client in clients:
+            self.addLink( client, client_switch )
+
+        self.addLink(lb, client_switch)
+        self.addLink(server_switch, lb)
+
+        for server in servers:
+            self.addLink( server, server_switch )
+
           
 topos = {"SCMS" : SingleClientMultiServer}
 

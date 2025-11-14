@@ -4,7 +4,10 @@ import sys
 
 class SimpleServer(http.server.BaseHTTPRequestHandler):
   def do_GET(self):
-    time.sleep(random.randint(1, 2))
+    # Do something computationally intensive to simulate load
+    lst = []
+    for i in range(1000000):
+        lst.append('x')
     
     body = f"Server: {self.server.server_address}\n"
 

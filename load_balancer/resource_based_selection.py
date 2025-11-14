@@ -43,6 +43,8 @@ class ResourceBased(PreFilter):
 
             cpu = float(data.get('cpu_usage', 0))
             mem = float(data.get('memory_usage', 0))
+            cpu_idle = float(data.get('cpu_free', 100))
+            cpu_used = float(data.get('cpu_used', 0))
             
             if r.status_code == 200:
                 score = self._compute_score(cpu, mem)
@@ -54,7 +56,7 @@ class ResourceBased(PreFilter):
                     'last_update': now
                 }
 
-                print(f'[LB] Polled {server}: CPU={cpu}%, MEM={mem}%, SCORE={score}, HEALTHY={self.resource_data[server]["healthy"]}')
+                print(f'[LB] Polled {server}: CPU={cpu}%, MEM={mem}%, CPU_FREE={cpu_idle}%, CPU_USED={cpu_used}%, SCORE={score}, HEALTHY={self.resource_data[server]["healthy"]}')
             else:
                 self.resource_data[server] = { 'healthy': False, 'last_update': now }
 

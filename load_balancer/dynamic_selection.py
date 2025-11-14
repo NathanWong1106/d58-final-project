@@ -60,7 +60,7 @@ class DynamicRoundRobin(DynamicSelectionAlgo):
 
     def select_server(self):
         with self.candidates_lock:
-            print(f'[LB] Current candidates: {self.candidates}')
+            # print(f'[LB] Current candidates: {self.candidates}')
             if not self.candidates:
                 return None
             server = self.candidates[self.index]

@@ -1,4 +1,4 @@
-apt update && apt install -y \
+sudo apt update && sudo apt install -y \
     mininet \
     iproute2 \
     iputils-ping \
@@ -14,13 +14,23 @@ apt update && apt install -y \
     curl \
     openvswitch-switch openvswitch-testcontroller
 
-pip install --upgrade pip
-pip install --no-cache-dir requests
-pip install --no-cache-dir psutil
+sudo pip install --upgrade pip
+sudo pip install requests
+sudo pip install psutil
 
 # Start openswitch service
 service openvswitch-switch start
 
+# Other stuff to try:
+
 # sudo apt-get install gcc python-dev?
 
-# pip install --upgrade-pip?
+# sudo pip install --upgrade pip
+
+# sudo apt-get --purge autoremove python3-pip
+
+#  sudo apt install python3-pip
+
+# python3.8 -m pip install psutil
+
+# Might need to do SUDO pip install instead of pip install
