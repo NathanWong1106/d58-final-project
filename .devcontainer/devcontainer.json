@@ -13,5 +13,5 @@
     }
   },
   "remoteUser": "root",
-  "postStartCommand": "chmod +x ./setup.sh && ./setup.sh || true"
+  "postStartCommand": "chmod +x /load_balancer/setup.sh && /load_balancer/setup.sh || true"
 }
