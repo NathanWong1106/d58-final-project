@@ -1,2 +1,5 @@
 load_balancer/temp_readme.md
 load_balancer/lb.log
+
+# Python cache files
+**/__pycache__/

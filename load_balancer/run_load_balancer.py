@@ -1,0 +1,48 @@
+import sys
+from strategies.lb_strategy import LBStrategy
+from strategies.round_robin_strategy import RoundRobinStrategy
+from load_balancer import LoadBalancer, LBOpts
+from serv_obj import Server
+import json
+import typing
+
+
+def get_strategy(strategy_name: str, servers: typing.List[Server]) -> LBStrategy:
+    if strategy_name == "round_robin":
+        return RoundRobinStrategy(servers)
+    else:
+        return None
+
+
+if __name__ == "__main__":
+
+    print("Starting Load Balancer...")
+
+    # Example servers
+    if len(sys.argv) < 1:
+        print("Usage: python run_load_balancer.py <path_to_config>.json")
+        sys.exit(1)
+
+    with open(sys.argv[1], 'r') as f:
+        config = json.load(f)
+
+        servers = []
+        for serv in config["servers"]:
+            servers.append(Server(serv["name"], serv["ip"], serv["port"]))
+
+        lb_strategy = get_strategy(config.get("strategy", "round_robin"), servers)
+        if lb_strategy is None:
+            print(f"Unknown strategy: {config.get('strategy')}")
+            sys.exit(1)
+        
+        lb_opts = LBOpts(
+            sticky_sessions=config.get("sticky_sessions", False),
+            debug_mode=config.get("debug_mode", False),
+            health_check_interval=config.get("health_check_interval", 5)
+        )
+
+        lb = LoadBalancer(config["load_balancer_ip"], config["load_balancer_port"], servers, lb_strategy, lb_opts)
+        lb.start_lb()
+
+
+    
