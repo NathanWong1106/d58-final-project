@@ -1,5 +1,4 @@
-import os
-import sys
+import time
 
 from test.setup.topos import SingleClientMultiServer
 from mininet.log import lg
@@ -13,9 +12,11 @@ def testBasic():
     lb = topo.get_load_balancer()
 
     results = []
-    for _ in range(10):
-        result = client.cmd(f'curl http://{lb.IP()}')
-        results.append(result.strip())
+    # Send requests for 20 seconds
+    end_time = time.time() + 5
+    while time.time() < end_time:
+        response = client.cmd(f'curl http://{lb.IP()}')
+        results.append(response.strip())
 
     topo.net.stop()
     print(results)

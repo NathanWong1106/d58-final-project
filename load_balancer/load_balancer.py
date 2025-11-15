@@ -3,6 +3,8 @@ import select
 from serv_obj import Server
 from strategies.lb_strategy import LBStrategy
 import typing
+import threading
+from health_check import HealthCheckService
 
 SERVERS = []
 BUF_SIZE = 4096
@@ -26,11 +28,17 @@ class LoadBalancer(object):
         self.client_to_server = {}
         self.server_to_client = {}
         self.active_sockets = set()
+
+        self.server_lock = threading.Lock()
         
         # Initialize the load balancer socket - TCP
         self.lb_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lb_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.lb_socket.bind((self.ip, self.port))
+
+        # Initialize Health Check Service
+        self.health_check_service = HealthCheckService(self.servers, self.server_lock, self.opts.health_check_interval)
+        self.health_check_service.start()
 
         # Start listening for incoming connections - max 5 queued connections
         self.lb_socket.listen(5)
@@ -40,6 +48,9 @@ class LoadBalancer(object):
     def print_debug(self, msg):
         if self.opts.debug_mode:
             print(f"[LB] {msg}")
+
+            with open("lb.log", "a") as f:
+                f.write(f"[LB] {msg}\n")
 
 
     def start_lb(self):
@@ -61,7 +72,17 @@ class LoadBalancer(object):
 
     def accept_connection(self):
         client_sock, client_addr = self.lb_socket.accept()
-        server = self.lb_strategy.get_server()
+
+        # Get the server to forward to - acquire lock since health check may modify server states
+        server = None
+        with self.server_lock:
+            server = self.lb_strategy.get_server()
+
+        if server is None:
+            self.print_debug("No healthy servers available, closing client connection")
+            client_sock.sendall(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 19\r\n\r\nService Unavailable")
+            client_sock.close()
+            return
 
         forward_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -78,7 +99,7 @@ class LoadBalancer(object):
         self.client_to_server[client_sock] = forward_sock
         self.server_to_client[forward_sock] = client_sock
 
-        self.print_debug(f"Accepted connection from {client_addr}, forwarding to server {server.ip}:{server.port}")
+        self.print_debug(f"Accepted connection from {client_addr}, forwarding to server {server.name}")
 
     def handle_data_forwarding(self, sock):
         try:

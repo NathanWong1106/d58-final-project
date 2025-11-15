@@ -67,9 +67,11 @@ class SingleClientMultiServer( Topo ):
 
         servers = self.get_servers()
         for server in servers:
-            server.cmd(f'python3 test/setup/test_server.py 8080 &')
+            print (f"Starting server on {server.name} at IP {server.IP()}")
+            server.cmd(f'python3 test/setup/test_server.py 80 "hello from {server.name}" &')
+            server.cmd(f'python3 server_health_agent.py &')
 
-        lb.cmd(f'python3 run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 & ')
+        lb.cmd(f'python3 run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
 
     
         
