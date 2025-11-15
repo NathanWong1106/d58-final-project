@@ -8,7 +8,7 @@ After installing the extension, you can run the `> Dev Containers: Reopen in Con
 
 To run the test topology, use `python3 test_topo.py` in the `/load_balancer` directory
 
-To test load balancer, use `python3 load_ballb_test_topo.py` in the `/load_balancer` directory
+To test load balancer, use `python3 lb_test_topo.py` in the `/load_balancer` directory
 Choose Mininet topology inside `lb_test_topo.py`
 Choose LB algorithm inside `load_balancer.py`
 Search for the word `choose`

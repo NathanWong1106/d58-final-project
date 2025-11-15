@@ -101,9 +101,6 @@ class ResourceLimitedMultiClientMultiServer( Topo ):
         for server in servers:
             self.addLink( server, server_switch )
 
-          
-topos = {"SCMS" : SingleClientMultiServer}
-
 def testSingleClient():
     topo = SingleClientMultiServer( 3 )
     net = Mininet( topo=topo, switch=OVSKernelSwitch,

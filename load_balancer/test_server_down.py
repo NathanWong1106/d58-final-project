@@ -117,10 +117,52 @@ def load_test():
     CLI(net)
     net.stop()
 
+def test_server_reconnect():
+    topo = MultiClientMultiServer(N=3)
+    net = Mininet(topo=topo, switch=OVSKernelSwitch, controller=Controller, link=TCLink)
 
+    net.start()
+
+    lb = net.get('lb')
+    lb.cmd('ifconfig lb-eth1 10.0.1.254/24 up')
+
+    net.get('s1').cmd('python3 fake_server.py 8080 &')
+    net.get('s2').cmd('python3 fake_server.py 8080 &')
+    net.get('s3').cmd('python3 fake_server.py 8080 &')
+
+    time.sleep(2)
+
+    lb.cmd('python3 -u dynamic_load_balancer.py > lb.log 2>&1 &')
+    
+    time.sleep(2)
+
+    clients = [net.get('c1'), net.get('c2'), net.get('c3')]
+    
+    # Start clients: 10s of requests
+    start_cmd = 'timeout 25s bash -c "while true; do curl -sS http://10.0.0.254/ > /dev/null; sleep 0.5; done" &'
+    info('Starting clients to send simultaneously for 10s\n')
+    for c in clients:
+        c.cmd(start_cmd)
+
+    # Wait 5s, then take down hosts s1 and s3
+    time.sleep(5)
+    info('Taking down server host s3 by disabling links to sw2\n')
+    # This simulates the entire host going offline in Mininet
+    net.get('s3').cmd('ifconfig s3-eth0 down')
+
+    #wait for a bit
+    time.sleep(15)
+    info('s3 back on\n')
+    net.get('s3').cmd('ifconfig s3-eth0 up')
+    
+    #wait for hosts to finish
+    time.sleep(6)
+
+    info('Clients finished; stopping network\n')
+    net.stop()
 
 if __name__ == '__main__':
     lg.setLogLevel('info')
-    load_test()
+    test_server_reconnect()
 
 

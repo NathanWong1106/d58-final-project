@@ -58,8 +58,6 @@ class SimpleSourceIPHash(StaticSelectionAlgo):
     def select_server(self, servers, **kwargs):
         h = hashlib.md5(bytes(kwargs.get("source_ip"), "UTF-8"))
         return servers[abs(int(h.hexdigest(), 16)) % len(servers)]
-    
-
 
 #Choose algo
 algo = SimpleSourceIPHash()
