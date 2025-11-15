@@ -68,6 +68,7 @@ class SingleClientMultiServer( Topo ):
         servers = self.get_servers()
         for server in servers:
             print (f"Starting server on {server.name} at IP {server.IP()}")
+            server.cmd('ifconfig %s-eth0 %s/24 up' % (server.name, server.IP()))
             server.cmd(f'python3 test/setup/test_server.py 80 "hello from {server.name}" &')
             server.cmd(f'python3 server_health_agent.py &')
 

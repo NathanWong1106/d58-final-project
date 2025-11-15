@@ -20,11 +20,10 @@ def test_failover():
     time.sleep(5)  # Let some requests go through
 
     # Now stop one server to test failover
-    s1.cmd('ifconfig s1-eth0 down')
+    topo.net.get('s1').cmd('ifconfig s1-eth0 down')
     print("Stopped server 1 to test failover")
 
     time.sleep(15)  # Let more requests go through
-
 
     topo.net.stop()
 

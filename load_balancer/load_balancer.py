@@ -8,6 +8,7 @@ from health_check import HealthCheckService
 
 SERVERS = []
 BUF_SIZE = 4096
+TIMEOUT = 5
 
 class LBOpts:
     def __init__ (self, sticky_sessions=False, debug_mode=False, health_check_interval=5):
@@ -34,6 +35,7 @@ class LoadBalancer(object):
         # Initialize the load balancer socket - TCP
         self.lb_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lb_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.lb_socket.setblocking(False)
         self.lb_socket.bind((self.ip, self.port))
 
         # Initialize Health Check Service
@@ -56,22 +58,26 @@ class LoadBalancer(object):
     def start_lb(self):
         self.print_debug("Load Balancer started, waiting for connections...")
         while True:
-            # Blocks until one or more sockets (fd) are ready for IO
-            read_sockets, _, _ = select.select(self.active_sockets, [], [])
+            # Blocks until one or more sockets (fd) are ready for IO - need this for non-blocking sockets
+            read_sockets, write_sockets, x_sockets = select.select(self.active_sockets, [], [])
             for sock in read_sockets:
-
-                # If it is the LB socket, accept new connection
                 if sock == self.lb_socket:
                     self.accept_connection()
-
-                # Otherwise handle forwarding data from client to server or vice versa
                 else:
                     self.handle_data_forwarding(sock)
             
+            for sock in write_sockets:
+                self.handle_data_forwarding(sock)
+
+            for sock in x_sockets:
+                self.print_debug(f"Exception on socket {sock}, closing connection")
+                self.close_connection(sock)
             
 
     def accept_connection(self):
         client_sock, client_addr = self.lb_socket.accept()
+        client_sock.settimeout(TIMEOUT)
+        client_sock.setblocking(False)
 
         # Get the server to forward to - acquire lock since health check may modify server states
         server = None
@@ -85,12 +91,17 @@ class LoadBalancer(object):
             return
 
         forward_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        forward_sock.settimeout(TIMEOUT)
+        forward_sock.setblocking(False)
 
-        try:
-            forward_sock.connect((server.ip, server.port))
-        except Exception as e:
-            self.print_debug(f"Error connecting to server {server.ip}:{server.port} - {e}")
+        conn_res = forward_sock.connect_ex((server.ip, server.port))
+
+        # Since connect_ex is non-blocking, it may return EINPROGRESS which is acceptable
+        if conn_res != 0 and conn_res != socket.errno.EINPROGRESS:
+            self.print_debug(f"Failed to connect to server {server.name} at {server.ip}:{server.port}, closing client connection")
+            client_sock.sendall(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 19\r\n\r\nService Unavailable")
             client_sock.close()
+            forward_sock.close()
             return
         
         self.active_sockets.add(client_sock)
@@ -121,7 +132,7 @@ class LoadBalancer(object):
                 # No data --> close connection
                 self.close_connection(sock)
         except Exception as e:
-            self.print_debug(f"Exception during forwarding: {e}")
+            self.print_debug(f"Exception during forwarding: {e}. Closing connection.")
             self.close_connection(sock)
 
     def close_connection(self, sock):
