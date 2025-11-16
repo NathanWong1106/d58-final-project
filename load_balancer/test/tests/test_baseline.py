@@ -1,24 +1,21 @@
 import threading
 import time
-from test.setup.topos import MultiClientMultiServer
+from test.setup.topos import MultiClientSingleServer
 from mininet.log import lg
 
-def test_basic_multiclient():
-    topo = MultiClientMultiServer()
+def test_baseline():
+    topo = MultiClientSingleServer()
     topo.start_backend()
     topo.net.start()
 
     clients = topo.get_clients()
     lb = topo.get_load_balancer()
-
     results = {client.name: [] for client in clients}
     rtts = {client.name: [] for client in clients}
 
     # Send requests for 20 seconds simultaneously from all clients
     end_time = time.time() + 20
-
     send_threads = []
-
     for client in clients:
         def send_requests(c):
             while time.time() < end_time:
@@ -37,11 +34,11 @@ def test_basic_multiclient():
         t.join()
 
     topo.net.stop()
-    
+
     for client_name in results:
         print(f"{client_name} sent {len(results[client_name])} requests with average RTT {sum(rtts[client_name])/len(rtts[client_name]):.4f} seconds")
-    
 
 if __name__ == "__main__":
     lg.setLogLevel('info')
-    test_basic_multiclient()
+    test_baseline()
+
