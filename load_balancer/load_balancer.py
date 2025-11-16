@@ -26,16 +26,12 @@ class LoadBalancer(object):
         self.lb_strategy = lb_strategy
         self.opts = opts
 
-        self.client_to_server = {}
-        self.server_to_client = {}
-        self.active_sockets = set()
-
         self.server_lock = threading.Lock()
         
         # Initialize the load balancer socket - TCP
+        socket.setdefaulttimeout(TIMEOUT)
         self.lb_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lb_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.lb_socket.setblocking(False)
         self.lb_socket.bind((self.ip, self.port))
 
         # Initialize Health Check Service
@@ -44,8 +40,6 @@ class LoadBalancer(object):
 
         # Start listening for incoming connections - max 5 queued connections
         self.lb_socket.listen(5)
-
-        self.active_sockets.add(self.lb_socket)
 
     def print_debug(self, msg):
         if self.opts.debug_mode:
@@ -58,112 +52,80 @@ class LoadBalancer(object):
     def start_lb(self):
         self.print_debug("Load Balancer started, waiting for connections...")
         while True:
-            # Blocks until one or more sockets (fd) are ready for IO - need this for non-blocking sockets
-            read_sockets, write_sockets, x_sockets = select.select(self.active_sockets, [], [])
+            # Blocks until one or more sockets (fd) are ready for IO
+            read_sockets, _, _= select.select([self.lb_socket], [], [])
             for sock in read_sockets:
                 if sock == self.lb_socket:
+                    # Create thread to handle new connection
                     self.accept_connection()
                 else:
                     self.handle_data_forwarding(sock)
-            
-            for sock in write_sockets:
-                self.handle_data_forwarding(sock)
-
-            for sock in x_sockets:
-                self.print_debug(f"Exception on socket {sock}, closing connection")
-                self.close_connection(sock)
-            
 
     def accept_connection(self):
         client_sock, client_addr = self.lb_socket.accept()
-        client_sock.settimeout(TIMEOUT)
-        client_sock.setblocking(False)
 
         # Get the server to forward to - acquire lock since health check may modify server states
         server = None
         with self.server_lock:
             server = self.lb_strategy.get_server()
 
+            if server is not None:
+                server.additional_info['active_connections'] = server.additional_info.get('active_connections', 0) + 1
+
         if server is None:
             self.print_debug("No healthy servers available, closing client connection")
             client_sock.sendall(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 19\r\n\r\nService Unavailable")
             client_sock.close()
             return
-
-        forward_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        forward_sock.settimeout(TIMEOUT)
-        forward_sock.setblocking(False)
-
-        conn_res = forward_sock.connect_ex((server.ip, server.port))
-
-        # Since connect_ex is non-blocking, it may return EINPROGRESS which is acceptable
-        if conn_res != 0 and conn_res != socket.errno.EINPROGRESS:
-            self.print_debug(f"Failed to connect to server {server.name} at {server.ip}:{server.port}, closing client connection")
-            client_sock.sendall(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 19\r\n\r\nService Unavailable")
-            client_sock.close()
-            forward_sock.close()
-            return
         
-        self.active_sockets.add(client_sock)
-        self.active_sockets.add(forward_sock)
+        server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self.client_to_server[client_sock] = forward_sock
-        self.server_to_client[forward_sock] = client_sock
+        try:
+            server_sock.connect((server.ip, server.port))
+        except Exception as e:
+            self.print_debug(f"Failed to connect to server {server.name} at {server.ip}:{server.port}, closing client connection")
+            client_sock.sendall(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 11\r\n\r\nBad Gateway")
+            client_sock.close()
+            with self.server_lock:
+                server.additional_info['active_connections'] -= 1
+                server.additional_info['errors'] += 1
+            return
 
         self.print_debug(f"Accepted connection from {client_addr}, forwarding to server {server.name}")
-
-    def handle_data_forwarding(self, sock):
-        try:
-            data = sock.recv(BUF_SIZE)
-            self.print_debug(f"Received data: {data}")
-            if data:
-                # Determine where to forward
-                if sock in self.client_to_server:
-                    dest_sock = self.client_to_server[sock]
-                elif sock in self.server_to_client:
-                    dest_sock = self.server_to_client[sock]
-                else:
-                    self.print_debug("Could not find destination socket for forwarding")
-                    return
-
-                dest_sock.sendall(data)
-            else:
-                self.print_debug("No data received, closing connection")
-                # No data --> close connection
-                self.close_connection(sock)
-        except Exception as e:
-            self.print_debug(f"Exception during forwarding: {e}. Closing connection.")
-            self.close_connection(sock)
-
-    def close_connection(self, sock):
-        # Find the socket pairs
-        client_sock = None
-        server_sock = None
-
-        if sock in self.client_to_server:
-            client_sock = sock
-            server_sock = self.client_to_server.pop(client_sock, None)
-            if server_sock:
-                self.server_to_client.pop(server_sock, None)
-        elif sock in self.server_to_client:
-            server_sock = sock
-            client_sock = self.server_to_client.pop(server_sock, None)
-            if client_sock:
-                self.client_to_server.pop(client_sock, None)
-
-        # Remove from active sockets and close connections
-        if client_sock:
-            self.active_sockets.discard(client_sock)
+        threading.Thread(target=self.handle_connection, args=(client_sock, server_sock, server)).start()
+    
+    def handle_connection(self, client_sock:socket.socket, server_sock:socket.socket, server:Server):
+        
+        while True:
             try:
-                client_sock.close()
-            except Exception:
-                pass
+                read_sockets, _, _= select.select([client_sock, server_sock], [], [])
+                for sock in read_sockets:
+                    data = sock.recv(BUF_SIZE)
+                    self.print_debug(f"Received {len(data)} bytes from {'client' if sock == client_sock else 'server'}")
+                    if data:
+                        if sock == client_sock:
+                            dest_sock = server_sock
+                        else:
+                            dest_sock = client_sock
+   
+                        dest_sock.sendall(data)
+                    else:
+                        self.print_debug("No data received, closing connection")
+                        self.close_connection(sock, server)
+                        return
+            except Exception as e:
+                self.print_debug(f"Exception during forwarding: {e}. Closing connection.")
+                self.close_connection(sock, server, is_error=True)
+                return
+            
+    def close_connection(self, sock:socket.socket, server:Server, is_error=False):
+        sock.close()
+        with self.server_lock:
+            server.additional_info['active_connections'] -= 1
 
-        if server_sock:
-            self.active_sockets.discard(server_sock)
-            try:
-                server_sock.close()
-            except Exception:
-                pass
+            if is_error:
+                server.additional_info['errors'] += 1
 
-        self.print_debug("Closed connection between client and server")
+            self.print_debug(f"Closed connection for server {server.name} who has active connections: {server.additional_info.get('active_connections', 0)}")
+
+    

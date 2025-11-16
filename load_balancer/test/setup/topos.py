@@ -74,5 +74,73 @@ class SingleClientMultiServer( Topo ):
 
         lb.cmd(f'python3 run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
 
+class MultiClientMultiServer( Topo ):
+    """"Topology for M clients and N server all connected through LB encapsulated by switches.
+    
+    C1...CM - S1 - LB - S2 - S1...SN
+    
+    """
+
+    DEFAULT_LB_JSON = 'test/setup/default_test_lb.json'
+
+    def __init__( self ):
+        Topo.__init__( self )
+        self.net = Mininet(topo=self, switch=OVSKernelSwitch,
+                       controller=Controller, link=TCLink)
+
+    # pylint: disable=arguments-differ
+    def build( self, M=6, N=3, **params ):
+        # Create switches and hosts 
+        servers = [ self.addHost( 's%s' % h, ip='10.0.1.%s/24' % h )
+                  for h in irange( 1, N ) ]
+        clients = [ self.addHost( 'c%s' % h, ip='10.0.0.%s/24' % h )
+                  for h in irange( 1, M ) ]
+        lb = self.addHost('lb', ip='10.0.0.254/24')
+        client_switch = self.addSwitch('sw1')
+        server_switch = self.addSwitch('sw2')
+
+        for client in clients:
+            self.addLink(client, client_switch)
+
+        self.addLink(lb, client_switch)
+        self.addLink(server_switch, lb)
+
+        for server in servers:
+          self.addLink( server, server_switch )
+
+    def get_clients(self):
+        clients = []
+        for host in self.net.hosts:
+            if host.name.startswith('c'):
+                clients.append(host)
+        return clients
+    
+    def get_servers(self):
+        servers = []
+        for host in self.net.hosts:
+            if host.name.startswith('s'):
+                servers.append(host)
+        return servers
+    
+    def get_load_balancer(self):
+        return self.net.get('lb')
+    
+    def start_backend(self):
+        """
+        Start simple HTTP servers on all backend servers and load balancer.
+        """
+
+        lb = self.get_load_balancer()
+        lb.cmd('ifconfig lb-eth1 10.0.1.254/24 up')
+        servers = self.get_servers()
+
+        for server in servers:
+            print (f"Starting server on {server.name} at IP {server.IP()}")
+            server.cmd('ifconfig %s-eth0 %s/24 up' % (server.name, server.IP()))
+            server.cmd(f'python3 test/setup/test_server.py 80 "hello from {server.name}" &')
+            server.cmd(f'python3 server_health_agent.py &')
+
+        lb.cmd(f'python3 run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
+
     
         
