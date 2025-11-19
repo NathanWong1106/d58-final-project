@@ -1,12 +1,17 @@
-import http.server, socketserver, threading, requests, random
-import time
+import socket
+import http.server, socketserver
 import sys
+
+MSG = "Hello from server!"
 
 class SimpleServer(http.server.BaseHTTPRequestHandler):
   def do_GET(self):
-    time.sleep(random.randint(1, 2))
+    # Do something computationally intensive to simulate load
+    lst = []
+    for _ in range(1000000):
+        lst.append('x')
     
-    body = f"Server: {self.server.server_address}\n"
+    body = f"{MSG}\n"
 
     self.send_response(200)
     self.send_header("Content-Type", "text/plain")
@@ -15,7 +20,10 @@ class SimpleServer(http.server.BaseHTTPRequestHandler):
     self.wfile.write(body.encode())
     
 PORT = 8080
-if len(sys.argv) > 1:
+if len(sys.argv) > 2:
   PORT = int(sys.argv[1]) 
+  MSG = sys.argv[2]
+
+# Serve on own IP address
 with socketserver.TCPServer(("", PORT), SimpleServer) as httpd:
     httpd.serve_forever()

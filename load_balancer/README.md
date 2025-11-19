@@ -1,0 +1,1 @@
+To run tests: `sudo python3 -m test.tests.test_basic`

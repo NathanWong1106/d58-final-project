@@ -1,2 +1,8 @@
 load_balancer/temp_readme.md
 load_balancer/lb.log
+
+# Python cache files
+**/__pycache__/
+.sudo_as_admin_successful
+load_balancer/dynamic_load_balancer.py
+load_balancer/client.log

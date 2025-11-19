@@ -1,14 +1,7 @@
 # d58-final-project
 
+### VM Setup
+Use the mininet-vm image from lab 3 and mount the load_balancer directory as a volume. The docker/devcontainer doesn't work for CPULimitedHosts (which we need for performance) testing but will be left (for now) as a reference for any dependencies we miss in the VM.
 
-## Setup
-You'll want to have the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension installed on VSCode to make your life easier.
-
-After installing the extension, you can run the `> Dev Containers: Reopen in Container` command to open up `/load_balancer` in a VSCode instance attached to the container. This will also run `setup.sh` for you.
-
-To run the test topology, use `python3 test_topo.py` in the `/load_balancer` directory
-
-To test load balancer, use `python3 load_ballb_test_topo.py` in the `/load_balancer` directory
-Choose Mininet topology inside `lb_test_topo.py`
-Choose LB algorithm inside `load_balancer.py`
-Search for the word `choose`
+### Developing in the VM
+Highly recommend using VSCode remote development using ssh into the VM.
