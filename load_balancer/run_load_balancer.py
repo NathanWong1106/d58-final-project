@@ -1,15 +1,18 @@
 import sys
 from strategies.lb_strategy import LBStrategy
 from strategies.round_robin_strategy import RoundRobinStrategy
+from strategies.consistent_hash_strategy import ConsistentHashing
 from load_balancer import LoadBalancer, LBOpts
 from serv_obj import Server
 import json
 import typing
 
 
-def get_strategy(strategy_name: str, servers: typing.List[Server]) -> LBStrategy:
+def get_strategy(strategy_name: str, servers: typing.List[Server], *, replica_count=10) -> LBStrategy:
     if strategy_name == "round_robin":
         return RoundRobinStrategy(servers)
+    elif strategy_name == "hash":
+        return ConsistentHashing(servers, replica_count)
     else:
         return None
 

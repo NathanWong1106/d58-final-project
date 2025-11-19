@@ -87,7 +87,12 @@ class SingleClientMultiServer( Topo ):
             server.cmd(f'python3 test/setup/test_server.py 80 "hello from {server.name}" &')
             server.cmd(f'python3 server_health_agent.py &')
 
-        lb.cmd(f'python3 run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
+        # to make sure servers finish starting
+        time.sleep(1)
+
+        print("Starting LB")
+        lb.cmd(
+            f'python3 -u run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
 
 class MultiClientMultiServer( Topo ):
     """
@@ -153,7 +158,12 @@ class MultiClientMultiServer( Topo ):
             server.cmd(f'python3 test/setup/test_server.py 80 "hello from {server.name}" &')
             server.cmd(f'python3 server_health_agent.py &')
 
-        lb.cmd(f'python3 run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
+        # to make sure servers finish starting
+        time.sleep(2)
+
+        print("Starting LB")
+        lb.cmd(
+            f'python3 -u run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
 
 class MultiClientSingleServer( Topo ):
     """ 
@@ -209,7 +219,12 @@ class MultiClientSingleServer( Topo ):
         server.cmd(f'python3 test/setup/test_server.py 80 "hello from {server.name}" &')
         server.cmd(f'python3 server_health_agent.py &')
 
-        lb.cmd(f'python3 run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
+        # to make sure servers finish starting
+        time.sleep(1)
+
+        print("Starting LB")
+        lb.cmd(
+            f'python3 -u run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
         
 
     

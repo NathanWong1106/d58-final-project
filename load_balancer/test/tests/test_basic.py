@@ -11,6 +11,8 @@ def testBasic():
     client = topo.get_client()
     lb = topo.get_load_balancer()
 
+    time.sleep(2)
+
     results = []
     # Send requests for 20 seconds
     end_time = time.time() + 5

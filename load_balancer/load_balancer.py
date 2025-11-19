@@ -67,10 +67,11 @@ class LoadBalancer(object):
         # Get the server to forward to - acquire lock since health check may modify server states
         server = None
         with self.server_lock:
-            server = self.lb_strategy.get_server()
+            server = self.lb_strategy.get_server(source_ip=client_addr[0])
 
             if server is not None:
                 server.additional_info['active_connections'] = server.additional_info.get('active_connections', 0) + 1
+                server.additional_info['errors'] = 0
 
         if server is None:
             self.print_debug("No healthy servers available, closing client connection")

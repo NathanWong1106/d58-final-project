@@ -14,6 +14,8 @@ def test_basic_multiclient():
     results = {client.name: [] for client in clients}
     rtts = {client.name: [] for client in clients}
 
+    time.sleep(2)
+
     # Send requests for 20 seconds simultaneously from all clients
     end_time = time.time() + 20
 

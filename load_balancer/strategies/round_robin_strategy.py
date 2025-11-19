@@ -7,7 +7,7 @@ class RoundRobinStrategy(LBStrategy):
         self.servers = servers
         self.current_index = 0
 
-    def get_server(self):
+    def get_server(self, **kwargs):
         if not self.servers:
             return None
         
