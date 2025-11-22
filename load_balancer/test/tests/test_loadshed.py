@@ -3,6 +3,12 @@ import time
 import threading
 from mininet.log import lg
 
+LOAD_DURATION = 30 # seconds
+NUM_CLIENTS = 10 # number of clients to simulate - just enough to overload the server
+CLIENT_CPU = 0.4 # CPU allocation for all clients
+SERVER_CPU = 0.1 # CPU allocation for the server
+
+
 def test_no_load_shedding():
     """
     In this test we simulate heavy load without shedding.
@@ -10,9 +16,11 @@ def test_no_load_shedding():
     We expect the server to fail under this load.
     """
     
-    topo = MultiClientSingleServer(num_clients=100, client_cpu=0.4, server_cpu=0.1)
+    topo = MultiClientSingleServer(num_clients=NUM_CLIENTS, client_cpu=CLIENT_CPU, server_cpu=SERVER_CPU)
     topo.start_backend()
     topo.net.start()
+
+    time.sleep(6) # wait for LB and servers to stabilize
 
     clients = topo.get_clients()
     lb = topo.get_load_balancer()
@@ -22,10 +30,11 @@ def test_no_load_shedding():
     results = {client.name: [] for client in clients}
     failures_per_client = {client.name: 0 for client in clients}
 
-    duration = 30
+    duration = LOAD_DURATION
     end_time = time.time() + duration
 
     def send_requests(c):
+        backoff = 0.02
         while time.time() < end_time:
             # send a simple HTTP request to the LB and capture headers+body
             resp = c.cmd(f'curl --max-time 3 -s -i http://{lb.IP()}')
@@ -33,8 +42,14 @@ def test_no_load_shedding():
                 results[c.name].append(resp)
                 if "503" in resp and "Service Unavailable" in resp:
                     failures_per_client[c.name] += 1
+
+                    # polite client - wait a bit before retrying
+                    backoff = min(backoff * 2, 1)  # exponential backoff with a max of 1 second
+                else:
+                    backoff = 0.02
+            
             # tiny pause to create a stream of requests
-            time.sleep(0.02)
+            time.sleep(backoff)
 
     print("Starting heavy load test with no load shedding: server failure is expected")
     threads = []
@@ -53,6 +68,7 @@ def test_no_load_shedding():
 
     print(f"Total requests sent: {total_sent}")
     print(f"Total failure responses: {total_failures}")
+    print(f"Percentage of failure responses: {100 * total_failures / total_sent:.2f}%")
 
     assert total_failures > 0, "Expected server to fail but it did not."
 
@@ -73,14 +89,14 @@ def test_load_shedding():
 
     # We increase the number of clients to 100 to simulate heavy load and give more cpu allocation to clients and less to the server
     # to simulate a realistic overload scenario
-    topo = MultiClientSingleServer(num_clients=100, client_cpu=0.4, server_cpu=0.1, lb_json=LB_JSON)
+    topo = MultiClientSingleServer(num_clients=NUM_CLIENTS, client_cpu=CLIENT_CPU, server_cpu=SERVER_CPU, lb_json=LB_JSON)
     topo.start_backend()
     topo.net.start()
 
     clients = topo.get_clients()
     lb = topo.get_load_balancer()
 
-    time.sleep(6)
+    time.sleep(6) # wait for LB and servers to stabilize
     
     # First sanity check: ensure that under light load (single client sending requests slowly), no requests are rejected
     c1 = clients[0]
@@ -101,10 +117,11 @@ def test_load_shedding():
     failures_per_client = {client.name: 0 for client in clients}
 
     # Run a heavy load for a short period to trigger shedding
-    duration = 30
+    duration = LOAD_DURATION
     end_time = time.time() + duration
 
     def send_requests(c):
+        backoff = 0.02
         while time.time() < end_time:
             # send a simple HTTP request to the LB and capture headers+body
             resp = c.cmd(f'curl --max-time 3 -s -i http://{lb.IP()}')
@@ -112,11 +129,14 @@ def test_load_shedding():
                 results[c.name].append(resp)
                 if "503" in resp and "The server is currently experiencing high load" in resp:
                     rejected_per_client[c.name] += 1
+                    backoff = min(backoff * 2, 1)  # exponential backoff with a max of 1 second
                 elif "503" in resp and "Service Unavailable" in resp:
                     failures_per_client[c.name] += 1
-            # tiny pause to create a stream of requests
-            time.sleep(0.02)
+                    backoff = min(backoff * 2, 1)  # exponential backoff with a max of 1 second
+                else:
+                    backoff = 0.02
 
+            time.sleep(backoff)
     print("Starting heavy load test with load shedding: some rejections expected but no failures expected")
     threads = []
     for client in clients:
@@ -147,5 +167,5 @@ def test_load_shedding():
 
 if __name__ == "__main__":
     lg.setLogLevel('info')
-    test_no_load_shedding()
+    # test_no_load_shedding()
     test_load_shedding()

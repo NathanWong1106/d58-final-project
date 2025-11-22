@@ -12,8 +12,8 @@
   "sticky_sessions": false,
   "debug_mode": true,
   "load_shedding_enabled": true,
-  "min_shed_threshold": 5,
-  "max_shed_threshold": 10,
-  "max_shed_prob": 0.75,
-  "shed_weight": 0.9
+  "min_shed_threshold": 8,
+  "max_shed_threshold": 15,
+  "max_shed_prob": 0.1,
+  "shed_weight": 0.75
 }

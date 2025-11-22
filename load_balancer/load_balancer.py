@@ -86,17 +86,16 @@ class LoadBalancer(object):
     def accept_connection(self):
         client_sock, client_addr = self.lb_socket.accept()
 
-        if self.shouldShed():
-            self.print_debug(f"Shedding load, rejecting connection from {client_addr}")
-            
-            # Send 503 service unavailable with message: The server is currently experiencing high load, please try again later.
-            client_sock.sendall(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 56\r\n\r\nThe server is currently experiencing high load, please try again later.")
-            client_sock.close()
-            return
-
         # Get the server to forward to - acquire lock since health check may modify server states
         server = None
         with self.server_lock:
+            if self.shouldShed():
+                self.print_debug(f"Shedding load, rejecting connection from {client_addr}")
+                
+                # Send 503 service unavailable with message: The server is currently experiencing high load, please try again later.
+                self.try_send_503(client_sock, "The server is currently experiencing high load, please try again later.")
+                client_sock.close()
+                return
             server = self.lb_strategy.get_server(source_ip=client_addr[0])
 
             if server is not None:
@@ -105,12 +104,14 @@ class LoadBalancer(object):
 
         if server is None:
             self.print_debug("No healthy servers available, closing client connection")
-            client_sock.sendall(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 19\r\n\r\nService Unavailable")
+            self.try_send_503(client_sock, "Service Unavailable")
             client_sock.close()
             return
         
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+        threading.Thread(target=self.handle_connection, args=(client_sock, server_sock, server)).start()
+    
+    def handle_connection(self, client_sock:socket.socket, server_sock:socket.socket, server:Server):
         try:
             server_sock.connect((server.ip, server.port))
         except Exception as e:
@@ -122,10 +123,7 @@ class LoadBalancer(object):
                 server.additional_info['errors'] += 1
             return
 
-        self.print_debug(f"Accepted connection from {client_addr}, forwarding to server {server.name}")
-        threading.Thread(target=self.handle_connection, args=(client_sock, server_sock, server)).start()
-    
-    def handle_connection(self, client_sock:socket.socket, server_sock:socket.socket, server:Server):
+        self.print_debug(f"Accepted connection from {client_sock.getpeername()}, forwarding to server {server.name}")
         
         while True:
             try:
@@ -178,13 +176,24 @@ class LoadBalancer(object):
         if self.avg_num_simultaneous_connections < self.opts.min_shed_threshold:
             self.count = 0
             return False
+        
+        if self.avg_num_simultaneous_connections >= self.opts.max_shed_threshold:
+            self.count = 0
+            return True
 
         tempP = self.opts.max_shed_prob * (self.avg_num_simultaneous_connections - self.opts.min_shed_threshold) / (self.opts.max_shed_threshold - self.opts.min_shed_threshold)
-        p = tempP / (1 - self.count * tempP)
+        tempP = max(0.0001, min(0.9999, tempP))
+        denom =  (1 - self.count * tempP)
+        p = 0.0
+
+        if denom <= 0:
+            p = 1.0
+        else:
+            p = tempP / denom
 
         print(f"Shedding probability: {p}, count: {self.count}, avg connections: {self.avg_num_simultaneous_connections}")
 
-        if random.random() < p:
+        if random.random() <= p:
             self.count = 0
             return True
         
@@ -192,3 +201,10 @@ class LoadBalancer(object):
             self.count += 1
         
         return False
+    
+    def try_send_503(self, client_sock:socket.socket, msg:str):
+        try:
+            http_response = f"HTTP/1.1 503 Service Unavailable\r\nContent-Length: {len(msg)}\r\n\r\n{msg}"
+            client_sock.sendall(http_response.encode())
+        except Exception as e:
+            self.print_debug(f"Error sending 503 response: {e}")
