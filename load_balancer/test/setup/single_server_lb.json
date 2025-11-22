@@ -8,5 +8,5 @@
 
     "strategy": "round_robin",
     "sticky_sessions": false,
-    "debug_mode": false
+    "debug_mode": true
 }

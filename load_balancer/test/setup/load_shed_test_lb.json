@@ -10,5 +10,10 @@
 
   "strategy": "round_robin",
   "sticky_sessions": false,
-  "debug_mode": true
+  "debug_mode": true,
+  "load_shedding_enabled": true,
+  "min_shed_threshold": 5,
+  "max_shed_threshold": 10,
+  "max_shed_prob": 0.75,
+  "shed_weight": 0.9
 }
