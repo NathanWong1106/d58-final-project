@@ -5,6 +5,23 @@ import typing
 
 # Note that this test is fairly flaky due to the nature of timing and load shedding.
 # Results may vary between runs. Taking the average between runs is recommended.
+# Sample output from one run:
+# --- No Load Shedding Test Results ---
+# Total requests sent: 260
+# Total successful responses (200): 46
+# Total timeouts (504 or curl timeout): 59
+# Total shed responses (503): 0
+# Total server errors (502/500): 153
+# Average latency (excluding shed requests): 5.123 seconds
+#
+# --- Load Shedding Test Results ---
+# Total requests sent: 2193
+# Total successful responses (200): 50
+# Total timeouts (504 or curl timeout): 42
+# Total shed responses (503): 2054
+# Total server errors (502/500): 30
+# Average latency (excluding shed requests): 3.636 seconds
+
 
 LOAD_DURATION = 20 # seconds
 NUM_CLIENTS = 60 # number of clients to simulate
