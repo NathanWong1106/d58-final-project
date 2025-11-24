@@ -3,11 +3,14 @@ import time
 import threading
 import typing
 
+# Note that this test is fairly flaky due to the nature of timing and load shedding.
+# Results may vary between runs. Taking the average between runs is recommended.
+
 LOAD_DURATION = 20 # seconds
 NUM_CLIENTS = 60 # number of clients to simulate
 CLIENT_CPU = 0.4 # CPU allocation for all clients
 NUM_SERVERS = 3
-SERVER_CPUS = [0.03, 0.01, 0.01] # CPU allocation for each server (in this config, servers are under-provisioned and can handle about 10 connections total simultaneously)
+SERVER_CPUS = [0.03, 0.01, 0.01] # CPU allocation for each server (in this config, servers are under-provisioned and can handle at most 10 connections total simultaneously)
 
 class RequestResult:
     def __init__(self, response: str, latency: float):
@@ -46,7 +49,7 @@ def send_requests(c, lock, results, lb):
     while time.time() < end_time:
         start_time = time.time()
         # send a simple HTTP request to the LB and capture headers+body
-        resp = c.cmd(f'curl --max-time 3 -s -i http://{lb.IP()}')
+        resp = c.cmd(f'curl --max-time 6 -i http://{lb.IP()}')
         latency = time.time() - start_time
         with lock:
             results.append(RequestResult(resp, latency))
