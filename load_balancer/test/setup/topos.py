@@ -101,7 +101,16 @@ class MultiClientMultiServer( Topo ):
 
     DEFAULT_LB_JSON = 'test/setup/default_test_lb.json'
 
-    def __init__( self ):
+    def __init__( self, num_clients=10, num_servers=3, client_cpu=CLIENT_CPU_TOT, server_cpus=None, lb_json=DEFAULT_LB_JSON ):
+        self.num_clients = num_clients
+        self.num_servers = num_servers
+        self.client_cpu = client_cpu
+        self.server_cpus = server_cpus
+        self.lb_json = lb_json
+
+        if self.server_cpus is None:
+            self.server_cpus = [SERVER_SINGLE_CPU for _ in range(num_servers)]
+
         Topo.__init__( self )
         self.net = Mininet(topo=self, switch=OVSKernelSwitch,
                        controller=Controller, link=TCLink)
@@ -109,10 +118,10 @@ class MultiClientMultiServer( Topo ):
     # pylint: disable=arguments-differ
     def build( self, M=10, N=3, **params ):
         # Create switches and hosts 
-        servers = [ self.addHost( 's%s' % h, ip='10.0.1.%s/24' % h, cls=CPULimitedHost, cpu=SERVER_SINGLE_CPU )
-                  for h in irange( 1, N ) ]
-        clients = [ self.addHost( 'c%s' % h, ip='10.0.0.%s/24' % h, cls=CPULimitedHost, cpu=CLIENT_CPU_TOT/M )
-                  for h in irange( 1, M ) ]
+        servers = [ self.addHost( 's%s' % h, ip='10.0.1.%s/24' % h, cls=CPULimitedHost, cpu=self.server_cpus[h-1] )
+                  for h in irange( 1, self.num_servers ) ]
+        clients = [ self.addHost( 'c%s' % h, ip='10.0.0.%s/24' % h, cls=CPULimitedHost, cpu=self.client_cpu/self.num_clients )
+                  for h in irange( 1, self.num_clients ) ]
         lb = self.addHost('lb', ip='10.0.0.254/24', cls=CPULimitedHost, cpu=LB_CPU_TOT )
         client_switch = self.addSwitch('sw1')
         server_switch = self.addSwitch('sw2')
@@ -163,7 +172,10 @@ class MultiClientMultiServer( Topo ):
 
         print("Starting LB")
         lb.cmd(
-            f'python3 -u run_load_balancer.py {self.DEFAULT_LB_JSON} > lb.log 2>&1 &')
+            f'python3 -u run_load_balancer.py {self.lb_json} > lb.log 2>&1 &')
+        
+        # LB init time
+        time.sleep(6)
 
 class MultiClientSingleServer( Topo ):
     """ 
