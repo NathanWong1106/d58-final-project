@@ -6,6 +6,7 @@ from strategies.lb_strategy import LBStrategy
 import typing
 import threading
 from health_check import HealthCheckService
+from load_shedder import LoadShedder, LoadShedParams
 
 SERVERS = []
 BUF_SIZE = 4096
@@ -17,21 +18,13 @@ class LBOpts:
                   debug_mode=False, 
                   health_check_interval=5, 
                   load_shedding_enabled=False,
-                  min_shed_threshold=5, 
-                  max_shed_threshold=10, 
-                  max_shed_prob=0.5, 
-                  shed_weight=0.8):
+                  load_shed_params:LoadShedParams=LoadShedParams()):
         
         self.sticky_sessions = sticky_sessions
         self.debug_mode = debug_mode
         self.health_check_interval = health_check_interval
         self.load_shedding_enabled = load_shedding_enabled
-
-        # RED-like thresholds for load shedding
-        self.min_shed_threshold = min_shed_threshold
-        self.max_shed_threshold = max_shed_threshold
-        self.max_shed_prob = max_shed_prob
-        self.shed_weight = shed_weight
+        self.load_shed_params = load_shed_params
 
 class LoadBalancer(object):
 
@@ -56,9 +49,8 @@ class LoadBalancer(object):
         self.health_check_service.start()
 
         # Load shedding parameters
-        self.num_simultaneous_connections = 0
-        self.avg_num_simultaneous_connections = 0
-        self.count = 0 # RED-like count (number of undropped connections since entering the sheddable state)
+        self.load_shedder = LoadShedder(self.opts.load_shed_params)
+        
 
         # Start listening for incoming connections - max 5 queued connections
         self.lb_socket.listen(5)
@@ -89,7 +81,7 @@ class LoadBalancer(object):
         # Get the server to forward to - acquire lock since health check may modify server states
         server = None
         with self.server_lock:
-            if self.shouldShed():
+            if self.opts.load_shedding_enabled and self.load_shedder.should_shed():
                 self.print_debug(f"Shedding load, rejecting connection from {client_addr}")
                 
                 # Send 503 service unavailable with message: The server is currently experiencing high load, please try again later.
@@ -160,47 +152,11 @@ class LoadBalancer(object):
     def update_connection_count(self, server:Server, is_connection: bool):
         if is_connection:
             server.additional_info['active_connections'] = server.additional_info.get('active_connections', 0) + 1
-            self.num_simultaneous_connections += 1
+            self.load_shedder.increment_connections()
 
         else:
             server.additional_info['active_connections'] = server.additional_info.get('active_connections', 0) - 1
-            self.num_simultaneous_connections -= 1
-
-        self.avg_num_simultaneous_connections = (1 - self.opts.shed_weight) * self.avg_num_simultaneous_connections + self.opts.shed_weight * self.num_simultaneous_connections
-
-
-    def shouldShed(self):
-        if not self.opts.load_shedding_enabled:
-            return False
-        
-        if self.avg_num_simultaneous_connections < self.opts.min_shed_threshold:
-            self.count = 0
-            return False
-        
-        if self.avg_num_simultaneous_connections >= self.opts.max_shed_threshold:
-            self.count = 0
-            return True
-
-        tempP = self.opts.max_shed_prob * (self.avg_num_simultaneous_connections - self.opts.min_shed_threshold) / (self.opts.max_shed_threshold - self.opts.min_shed_threshold)
-        tempP = max(0.0001, min(0.9999, tempP))
-        denom =  (1 - self.count * tempP)
-        p = 0.0
-
-        if denom <= 0:
-            p = 1.0
-        else:
-            p = tempP / denom
-
-        print(f"Shedding probability: {p}, count: {self.count}, avg connections: {self.avg_num_simultaneous_connections}")
-
-        if random.random() <= p:
-            self.count = 0
-            return True
-        
-        if self.opts.min_shed_threshold < self.avg_num_simultaneous_connections and self.avg_num_simultaneous_connections < self.opts.max_shed_threshold:
-            self.count += 1
-        
-        return False
+            self.load_shedder.decrement_connections()
     
     def try_send_503(self, client_sock:socket.socket, msg:str):
         try:
