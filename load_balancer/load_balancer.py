@@ -16,13 +16,17 @@ class LBOpts:
     def __init__ (self, 
                   sticky_sessions=False, 
                   debug_mode=False, 
-                  health_check_interval=5, 
+                  health_check_interval=3, 
+                  health_check_path="/health",
+                  health_check_timeout=2,
                   load_shedding_enabled=False,
                   load_shed_params:LoadShedParams=LoadShedParams()):
         
         self.sticky_sessions = sticky_sessions
         self.debug_mode = debug_mode
         self.health_check_interval = health_check_interval
+        self.health_check_path = health_check_path
+        self.health_check_timeout = health_check_timeout
         self.load_shedding_enabled = load_shedding_enabled
         self.load_shed_params = load_shed_params
 
@@ -45,7 +49,7 @@ class LoadBalancer(object):
         self.lb_socket.bind((self.ip, self.port))
 
         # Initialize Health Check Service
-        self.health_check_service = HealthCheckService(self.servers, self.server_lock, self.opts.health_check_interval)
+        self.health_check_service = HealthCheckService(self.servers, self.server_lock, self.opts.health_check_interval, self.opts.health_check_path, self.opts.health_check_timeout)
         self.health_check_service.start()
 
         # Load shedding parameters
@@ -81,6 +85,7 @@ class LoadBalancer(object):
         # Get the server to forward to - acquire lock since health check may modify server states
         server = None
         with self.server_lock:
+            self.print_debug(f"Servers status: {[{'name': s.name, 'healthy': s.healthy, 'avg_rtt': s.get_additional_info('health_check_info').get_average_rtt() } for s in self.servers]}")
             if self.opts.load_shedding_enabled and self.load_shedder.should_shed():
                 self.print_debug(f"Shedding load, rejecting connection from {client_addr}")
                 
@@ -96,7 +101,7 @@ class LoadBalancer(object):
 
         if server is None:
             self.print_debug("No healthy servers available, closing client connection")
-            self.try_send_503(client_sock, "Service Unavailable")
+            self.try_send_503(client_sock, "No healthy servers available, please try again later.")
             client_sock.close()
             return
         
@@ -108,7 +113,7 @@ class LoadBalancer(object):
             server_sock.connect((server.ip, server.port))
         except Exception as e:
             self.print_debug(f"Failed to connect to server {server.name} at {server.ip}:{server.port}, closing client connection")
-            client_sock.sendall(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 11\r\n\r\nBad Gateway")
+            self.try_send_500(client_sock, "Internal Server Error")
             client_sock.close()
             with self.server_lock:
                 self.update_connection_count(server, is_connection=False)
@@ -136,6 +141,7 @@ class LoadBalancer(object):
                         return
             except Exception as e:
                 self.print_debug(f"Exception during forwarding: {e}. Closing connection.")
+                self.try_send_500(client_sock, "Internal Server Error")
                 self.close_connection(sock, server, is_error=True)
                 return
             
@@ -160,7 +166,14 @@ class LoadBalancer(object):
     
     def try_send_503(self, client_sock:socket.socket, msg:str):
         try:
-            http_response = f"HTTP/1.1 503 Service Unavailable\r\nContent-Length: {len(msg)}\r\n\r\n{msg}"
+            http_response = f"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/html;\r\nContent-Length: {len(msg)}\r\n\r\n{msg}"
             client_sock.sendall(http_response.encode())
         except Exception as e:
             self.print_debug(f"Error sending 503 response: {e}")
+
+    def try_send_500(self, client_sock:socket.socket, msg:str):
+        try:
+            http_response = f"HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html;\r\nContent-Length: {len(msg)}\r\n\r\n{msg}"
+            client_sock.sendall(http_response.encode())
+        except Exception as e:
+            self.print_debug(f"Error sending 500 response: {e}")

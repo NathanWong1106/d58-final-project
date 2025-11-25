@@ -27,7 +27,7 @@ LOAD_DURATION = 20 # seconds
 NUM_CLIENTS = 60 # number of clients to simulate
 CLIENT_CPU = 0.4 # CPU allocation for all clients
 NUM_SERVERS = 3
-SERVER_CPUS = [0.03, 0.01, 0.01] # CPU allocation for each server (in this config, servers are under-provisioned and can handle at most 10 connections total simultaneously)
+SERVER_CPUS = [0.03, 0.03, 0.03] # CPU allocation for each server (in this config, servers are under-provisioned and can handle at most 10 connections total simultaneously)
 
 class RequestResult:
     def __init__(self, response: str, latency: float):
@@ -41,10 +41,10 @@ class RequestResult:
         return "504" in self.response or "timed out" in self.response.lower()
     
     def was_shed(self):
-        return "503" in self.response and "Service Unavailable" in self.response
+        return "503" in self.response and "high load" in self.response
     
     def was_server_error(self):
-        return "502" in self.response or "500" in self.response
+        return "502" in self.response or "500" in self.response or ("503" in self.response and "No healthy servers" in self.response)
     
 def results_summary(results: typing.List[RequestResult]):
     total_requests = len(results)

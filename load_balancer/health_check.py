@@ -4,38 +4,29 @@ import time
 import socket
 from serv_obj import Server
 
-HEALTH_CHECK_PATH = "/health"
-HEALTH_CHECK_PORT = 8001
+HTTP_PORT = 80
 
 class HealthCheckInfo:
-    WINDOW_SIZE = 10
+    WEIGHT = 0.8  # weight for moving average
 
     def __init__ (self):
-        self.rtts = []
-        self.sum_rtt = 0.0
-        self.count = 0
+        self.avg_rtt = 0.0
+        
 
     def add_rtt(self, rtt: float):
-        if self.count < self.WINDOW_SIZE:
-            self.rtts.append(rtt)
-            self.sum_rtt += rtt
-            self.count += 1
-        else:
-            oldest_rtt = self.rtts.pop(0)
-            self.sum_rtt -= oldest_rtt
-            self.rtts.append(rtt)
-            self.sum_rtt += rtt
+        self.avg_rtt = (self.WEIGHT * self.avg_rtt) + ((1 - self.WEIGHT) * rtt)
 
     def get_average_rtt(self) -> float:
-        if self.count == 0:
-            return float('inf')
-        return self.sum_rtt / self.count
+        return self.avg_rtt
+        
 
 class HealthCheckService:
-    def __init__(self, servers: typing.List[Server], server_lock: threading.Lock, interval=5):
+    def __init__(self, servers: typing.List[Server], server_lock: threading.Lock, interval=3, health_check_path="/health", timeout=1):
         self.servers = servers
         self.server_lock = server_lock
         self.interval = interval
+        self.health_check_path = health_check_path
+        self.timeout = timeout
 
     def start(self):
         def run():
@@ -56,9 +47,9 @@ class HealthCheckService:
                 start = time.time()
 
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                request = self.GET_request_string(HEALTH_CHECK_PATH, server.ip)
-                sock.settimeout(2)
-                sock.connect((server.ip, HEALTH_CHECK_PORT))
+                request = self.GET_request_string(self.health_check_path, server.ip)
+                sock.settimeout(self.timeout)
+                sock.connect((server.ip, HTTP_PORT))
                 sock.sendall(request.encode())
                 response = sock.recv(1024).decode()
                 sock.close()
@@ -71,15 +62,14 @@ class HealthCheckService:
                 # Update server health status
                 # We need to obtain the lock before modifying shared server state
                 with self.server_lock:
+                    if not server.get_additional_info("health_check_info"):
+                        server.set_additional_info("health_check_info", HealthCheckInfo())
+                    
+                    health_info:HealthCheckInfo = server.get_additional_info("health_check_info")
+                    health_info.add_rtt(rtt)
+                    
                     if "200 OK" in response:
                         server.set_healthy(True)
-
-                        if not server.get_additional_info("health_check_info"):
-                            server.set_additional_info("health_check_info", HealthCheckInfo())
-
-                        health_info = server.get_additional_info("health_check_info")
-                        health_info.add_rtt(rtt)
-                        server.set_additional_info("health_check_info", health_info)
                     else:
                         server.set_healthy(False)
 

@@ -2,6 +2,10 @@
   "load_balancer_ip": "10.0.0.254",
   "load_balancer_port": 80,
 
+  "health_check_interval": 3,
+  "health_check_timeout": 2,
+  "health_check_path": "/health",
+
   "servers": [
     { "name": "s1", "ip": "10.0.1.1", "port": 80 },
     { "name": "s2", "ip": "10.0.1.2", "port": 80 },

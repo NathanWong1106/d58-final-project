@@ -42,7 +42,9 @@ if __name__ == "__main__":
         lb_opts = LBOpts(
             sticky_sessions=config.get("sticky_sessions", False),
             debug_mode=config.get("debug_mode", False),
-            health_check_interval=config.get("health_check_interval", 5),
+            health_check_interval=config.get("health_check_interval", 3),
+            health_check_path=config.get("health_check_path", "/health"),
+            health_check_timeout=config.get("health_check_timeout", 2),
             load_shedding_enabled=config.get("load_shedding_enabled", False),
             load_shed_params=LoadShedParams(
                 sim_conn_threshold=config.get("load_shed_params", {}).get("sim_conn_threshold", 5),
