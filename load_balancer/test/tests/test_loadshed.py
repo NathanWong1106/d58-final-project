@@ -7,27 +7,27 @@ import typing
 # Results may vary between runs. Taking the average between runs is recommended.
 # Sample output from one run:
 # --- No Load Shedding Test Results ---
-# Total requests sent: 260
-# Total successful responses (200): 46
-# Total timeouts (504 or curl timeout): 59
+# Total requests sent: 758
+# Total successful responses (200): 57
+# Total timeouts (504 or curl timeout): 55
 # Total shed responses (503): 0
-# Total server errors (502/500): 153
-# Average latency (excluding shed requests): 5.123 seconds
-#
+# Total server errors (502/500): 641
+# Average latency of successful requests: 3.107 seconds
+
 # --- Load Shedding Test Results ---
-# Total requests sent: 2193
-# Total successful responses (200): 50
-# Total timeouts (504 or curl timeout): 42
-# Total shed responses (503): 2054
-# Total server errors (502/500): 30
-# Average latency (excluding shed requests): 3.636 seconds
+# Total requests sent: 1956
+# Total successful responses (200): 131
+# Total timeouts (504 or curl timeout): 7
+# Total shed responses (503): 1798
+# Total server errors (502/500): 4
+# Average latency of successful requests: 2.434 seconds
 
 
 LOAD_DURATION = 20 # seconds
 NUM_CLIENTS = 60 # number of clients to simulate
 CLIENT_CPU = 0.4 # CPU allocation for all clients
 NUM_SERVERS = 3
-SERVER_CPUS = [0.03, 0.03, 0.03] # CPU allocation for each server (in this config, servers are under-provisioned and can handle at most 10 connections total simultaneously)
+SERVER_CPUS = [0.03, 0.03, 0.03] # CPU allocation for each server (in this config, servers are under-provisioned and can handle at most 5-7 connections total simultaneously)
 
 class RequestResult:
     def __init__(self, response: str, latency: float):
@@ -52,14 +52,14 @@ def results_summary(results: typing.List[RequestResult]):
     total_timeouts = sum(1 for r in results if r.is_timeout())
     total_shed = sum(1 for r in results if r.was_shed())
     total_server_errors = sum(1 for r in results if r.was_server_error())
-    avg_non_shed_latency = sum(r.latency for r in results if not r.was_shed()) / max(1, sum(1 for r in results if not r.was_shed()))
+    avg_successful_latency = sum(r.latency for r in results if r.is_successful()) / total_successful_requests if total_successful_requests > 0 else 0.0
 
     print(f"Total requests sent: {total_requests}"
           f"\nTotal successful responses (200): {total_successful_requests}"
             f"\nTotal timeouts (504 or curl timeout): {total_timeouts}"
             f"\nTotal shed responses (503): {total_shed}"
             f"\nTotal server errors (502/500): {total_server_errors}"
-            f"\nAverage latency (excluding shed requests): {avg_non_shed_latency:.3f} seconds")
+            f"\nAverage latency of successful requests: {avg_successful_latency:.3f} seconds")
 
 def send_requests(c, lock, results, lb):
     end_time = time.time() + LOAD_DURATION
@@ -113,7 +113,7 @@ def test_no_load_shedding():
 def test_load_shedding():
     """
     In this test, we simulate a scenario where the load balancer employs load shedding to prevent server overload. 
-    The load balancer will reject requests when the number of simultaneous connections exceeds a certain threshold (10). 
+    The load balancer will reject requests when the number of simultaneous connections exceeds a certain threshold (5). 
 
     We expect fewer timeouts and failed requests compared to the no load shedding scenario, as well as lower latencies.
     """
