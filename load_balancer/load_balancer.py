@@ -81,8 +81,6 @@ class LoadBalancer(object):
                 if sock == self.lb_socket:
                     # Create thread to handle new connection
                     self.accept_connection()
-                else:
-                    self.handle_data_forwarding(sock)
 
     def accept_connection(self):
         client_sock, client_addr = self.lb_socket.accept()
