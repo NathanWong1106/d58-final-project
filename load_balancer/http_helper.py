@@ -1,13 +1,12 @@
 class HTTPResponse:
-    def __init__(self, status_code: int, body: str, headers: dict):
+    def __init__(self, status_code: int, body: str):
         self.status_code = status_code
         self.body = body
-        self.headers = headers
 
     def get_response_string(self) -> str:
         response_lines = [f"HTTP/1.1 {self.status_code} {self._get_status_message()}"]
-        for header, value in self.headers.items():
-            response_lines.append(f"{header}: {value}")
+        response_lines.append("Content-Type: text/html")
+        response_lines.append(f"Content-Length: {len(self.body)}")
         response_lines.append("")  # Blank line between headers and body
         response_lines.append(self.body)
         return "\r\n".join(response_lines)

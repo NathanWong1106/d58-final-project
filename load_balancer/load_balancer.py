@@ -7,10 +7,15 @@ import typing
 import threading
 from health_check import HealthCheckService
 from load_shedder import LoadShedder, LoadShedParams
+from http_helper import HTTPResponse
 
 SERVERS = []
 BUF_SIZE = 4096
 TIMEOUT = 5
+
+SHED_RESPONSE = (503, "The server is currently experiencing high load, please try again later.")
+OVERLOADED_RESPONSE = (503, "No healthy servers available, please try again later.")
+INTERNAL_SERVER_ERROR_RESPONSE = (500, "Internal Server Error")
 
 class LBOpts:
     def __init__ (self, 
@@ -88,9 +93,7 @@ class LoadBalancer(object):
             self.print_debug(f"Servers status: {[{'name': s.name, 'healthy': s.healthy, 'avg_rtt': s.get_additional_info('health_check_info').get_average_rtt() } for s in self.servers]}")
             if self.opts.load_shedding_enabled and self.load_shedder.should_shed():
                 self.print_debug(f"Shedding load, rejecting connection from {client_addr}")
-                
-                # Send 503 service unavailable with message: The server is currently experiencing high load, please try again later.
-                self.try_send_503(client_sock, "The server is currently experiencing high load, please try again later.")
+                self.try_send_error(client_sock, SHED_RESPONSE[0], SHED_RESPONSE[1])
                 client_sock.close()
                 return
             server = self.lb_strategy.get_server(source_ip=client_addr[0])
@@ -101,7 +104,7 @@ class LoadBalancer(object):
 
         if server is None:
             self.print_debug("No healthy servers available, closing client connection")
-            self.try_send_503(client_sock, "No healthy servers available, please try again later.")
+            self.try_send_error(client_sock, OVERLOADED_RESPONSE[0], OVERLOADED_RESPONSE[1])
             client_sock.close()
             return
         
@@ -113,7 +116,7 @@ class LoadBalancer(object):
             server_sock.connect((server.ip, server.port))
         except Exception as e:
             self.print_debug(f"Failed to connect to server {server.name} at {server.ip}:{server.port}, closing client connection")
-            self.try_send_500(client_sock, "Internal Server Error")
+            self.try_send_error(client_sock, INTERNAL_SERVER_ERROR_RESPONSE[0], INTERNAL_SERVER_ERROR_RESPONSE[1])
             client_sock.close()
             with self.server_lock:
                 self.update_connection_count(server, is_connection=False)
@@ -141,7 +144,7 @@ class LoadBalancer(object):
                         return
             except Exception as e:
                 self.print_debug(f"Exception during forwarding: {e}. Closing connection.")
-                self.try_send_500(client_sock, "Internal Server Error")
+                self.try_send_error(client_sock, INTERNAL_SERVER_ERROR_RESPONSE[0], INTERNAL_SERVER_ERROR_RESPONSE[1])
                 self.close_connection(sock, server, is_error=True)
                 return
             
@@ -163,17 +166,10 @@ class LoadBalancer(object):
         else:
             server.additional_info['active_connections'] = server.additional_info.get('active_connections', 0) - 1
             self.load_shedder.decrement_connections()
-    
-    def try_send_503(self, client_sock:socket.socket, msg:str):
-        try:
-            http_response = f"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/html;\r\nContent-Length: {len(msg)}\r\n\r\n{msg}"
-            client_sock.sendall(http_response.encode())
-        except Exception as e:
-            self.print_debug(f"Error sending 503 response: {e}")
 
-    def try_send_500(self, client_sock:socket.socket, msg:str):
+    def try_send_error(self, client_sock:socket.socket, status_code:int, msg:str):
         try:
-            http_response = f"HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html;\r\nContent-Length: {len(msg)}\r\n\r\n{msg}"
+            http_response = HTTPResponse(status_code, msg).get_response_string()
             client_sock.sendall(http_response.encode())
         except Exception as e:
-            self.print_debug(f"Error sending 500 response: {e}")
+            self.print_debug(f"Error sending {status_code} response: {e}")
