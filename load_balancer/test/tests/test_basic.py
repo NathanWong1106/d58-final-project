@@ -9,6 +9,7 @@ def testBasic():
     topo.net.start()
 
     client = topo.get_client()
+    sid = topo.get_sid()
     lb = topo.get_load_balancer()
 
     time.sleep(2)
@@ -17,7 +18,7 @@ def testBasic():
     # Send requests for 20 seconds
     end_time = time.time() + 5
     while time.time() < end_time:
-        response = client.cmd(f'curl http://{lb.IP()}')
+        response = client.cmd(f'curl -s -H "SID: {sid}" http://{lb.IP()}')
         results.append(response.strip())
 
     topo.net.stop()
