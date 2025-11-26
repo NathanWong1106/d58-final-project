@@ -4,7 +4,7 @@ import typing
 
 class LeastResponseTimeStrategy(LBStrategy):
     """
-    Select a healthy server with the lowest average response time (RTT).
+    Select a healthy server with the lowest average response time.
     Use weight from additional_info if available (default to 1 otherwise).
     """
 
