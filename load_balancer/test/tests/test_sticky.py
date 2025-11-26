@@ -33,6 +33,7 @@ def test_sticky():
     topo.net.get('c2').cmd('ifconfig c2-eth0 down')
     print("Stopped client 1 & 2 to test sticky session")
 
+    # make sleep shorter/longer than STICKY_TIMEOUT to see mapping expiry
     time.sleep(15)  # Let more requests go through
 
     topo.net.get('c1').cmd('ifconfig c1-eth0 up')
