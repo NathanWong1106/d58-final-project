@@ -14,6 +14,12 @@ def get_strategy(strategy_name: str, servers: typing.List[Server], *, replica_co
         return RoundRobinStrategy(servers)
     elif strategy_name == "hash":
         return ConsistentHashing(servers, replica_count)
+    elif strategy_name == "weighted_round_robin":
+        return WeightedRoundRobinStrategy(servers)
+    elif strategy_name == "least_connections":
+        return LeastConnectionsStrategy(servers)
+    elif strategy_name == "least_response_time":
+        return LeastResponseTimeStrategy(servers)
     else:
         return None
 
