@@ -14,5 +14,10 @@
 
   "strategy": "round_robin",
   "sticky_sessions": false,
-  "debug_mode": true
+  "debug_mode": true,
+  "load_shedding_enabled": true,
+  "load_shed_params": {
+    "sim_conn_threshold": 4,
+    "strategy": "exponential"
+  }
 }

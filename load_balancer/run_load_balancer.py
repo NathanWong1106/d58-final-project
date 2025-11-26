@@ -3,6 +3,7 @@ from strategies.lb_strategy import LBStrategy
 from strategies.round_robin_strategy import RoundRobinStrategy
 from strategies.consistent_hash_strategy import ConsistentHashing
 from load_balancer import LoadBalancer, LBOpts
+from load_shedder import LoadShedParams
 from serv_obj import Server
 import json
 import typing
@@ -41,7 +42,14 @@ if __name__ == "__main__":
         lb_opts = LBOpts(
             sticky_sessions=config.get("sticky_sessions", False),
             debug_mode=config.get("debug_mode", False),
-            health_check_interval=config.get("health_check_interval", 5)
+            health_check_interval=config.get("health_check_interval", 3),
+            health_check_path=config.get("health_check_path", "/health"),
+            health_check_timeout=config.get("health_check_timeout", 2),
+            load_shedding_enabled=config.get("load_shedding_enabled", False),
+            load_shed_params=LoadShedParams(
+                sim_conn_threshold=config.get("load_shed_params", {}).get("sim_conn_threshold", 5),
+                strategy=config.get("load_shed_params", {}).get("strategy", "exponential")
+            )
         )
 
         lb = LoadBalancer(config["load_balancer_ip"], config["load_balancer_port"], servers, lb_strategy, lb_opts)
