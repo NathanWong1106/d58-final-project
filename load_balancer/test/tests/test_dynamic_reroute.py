@@ -27,12 +27,12 @@ def test_reroute():
 
     # Now stop one server to test rerouting
     topo.net.get('s3').cmd('ifconfig s3-eth0 down')
-    print("Stopped server 1 to test rerouting")
+    print("Stopped server 3 to test rerouting")
 
     time.sleep(15)  # Let more requests go through
 
     topo.net.get('s3').cmd('ifconfig s3-eth0 up')
-    print("Started server 1 to test rerouting")
+    print("Started server 3 to test rerouting")
 
     time.sleep(11)
 

@@ -17,7 +17,7 @@
   "debug_mode": true,
   "load_shedding_enabled": true,
   "load_shed_params": {
-    "sim_conn_threshold": 6,
-    "strategy": "hard"
+    "sim_conn_threshold": 4,
+    "strategy": "exponential"
   }
 }

@@ -7,20 +7,28 @@ import typing
 # Results may vary between runs. Taking the average between runs is recommended.
 # Sample output from one run:
 # --- No Load Shedding Test Results ---
-# Total requests sent: 758
-# Total successful responses (200): 57
-# Total timeouts (504 or curl timeout): 55
+# Total requests sent: 437
+# Total successful responses (200): 136
+# Total timeouts (504 or curl timeout): 23
 # Total shed responses (503): 0
-# Total server errors (502/500): 641
-# Average latency of successful requests: 3.107 seconds
+# Total server errors (502/500): 277
+# Average latency of successful requests: 3.361 seconds
 
 # --- Load Shedding Test Results ---
-# Total requests sent: 1956
-# Total successful responses (200): 131
-# Total timeouts (504 or curl timeout): 7
-# Total shed responses (503): 1798
-# Total server errors (502/500): 4
-# Average latency of successful requests: 2.434 seconds
+# Total requests sent: 2429
+# Total successful responses (200): 145
+# Total timeouts (504 or curl timeout): 0
+# Total shed responses (503): 2256
+# Total server errors (502/500): 0
+# Average latency of successful requests: 1.228 seconds
+
+# --- Exponential Load Shedding Test Results ---
+# Total requests sent: 2118
+# Total successful responses (200): 139
+# Total timeouts (504 or curl timeout): 0
+# Total shed responses (503): 1951
+# Total server errors (502/500): 2
+# Average latency of successful requests: 2.483 seconds
 
 
 LOAD_DURATION = 20 # seconds
@@ -145,13 +153,52 @@ def test_load_shedding():
 
     return results
 
+def test_load_shed_exponential():
+    """
+    In this test, we simulate a scenario where the load balancer employs exponential load shedding to prevent server overload. 
+    The load balancer will reject requests with increasing probability as the number of simultaneous connections exceeds a certain threshold (6). 
+
+    We expect fewer timeouts and failed requests compared to the no load shedding scenario, as well as lower latencies.
+    """
+
+    topo = MultiClientMultiServer(num_clients=NUM_CLIENTS, num_servers=NUM_SERVERS, client_cpu=CLIENT_CPU, server_cpus=SERVER_CPUS, lb_json='test/setup/load_shed_test_exp_lb.json')
+    topo.start_backend()
+    topo.net.start()
+
+    time.sleep(6) # wait for LB and servers to stabilize
+
+    clients = topo.get_clients()
+    
+    # Shared results and counters
+    lock = threading.Lock()
+    results = []
+
+    print("Starting exponential load shedding test")
+    threads = []
+    for client in clients:
+        t = threading.Thread(target=send_requests, args=(client, lock, results, topo.get_load_balancer()))
+        t.start()
+        threads.append(t)
+
+    for t in threads:
+        t.join()
+
+    topo.net.stop()
+    print("Test completed.")
+
+    return results
+
 
 if __name__ == "__main__":
     no_shed_test_results = test_no_load_shedding()
     shed_test_results = test_load_shedding()
+    exp_shed_test_results = test_load_shed_exponential()
 
     print("\n--- No Load Shedding Test Results ---")
     results_summary(no_shed_test_results)
 
     print("\n--- Load Shedding Test Results ---")
     results_summary(shed_test_results)
+
+    print("\n--- Exponential Load Shedding Test Results ---")
+    results_summary(exp_shed_test_results)

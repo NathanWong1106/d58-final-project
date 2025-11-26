@@ -48,7 +48,7 @@ if __name__ == "__main__":
             load_shedding_enabled=config.get("load_shedding_enabled", False),
             load_shed_params=LoadShedParams(
                 sim_conn_threshold=config.get("load_shed_params", {}).get("sim_conn_threshold", 5),
-                strategy=config.get("load_shed_params", {}).get("hard", "exponential")
+                strategy=config.get("load_shed_params", {}).get("strategy", "exponential")
             )
         )
 
