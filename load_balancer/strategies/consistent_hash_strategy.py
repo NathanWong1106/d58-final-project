@@ -42,10 +42,8 @@ class ConsistentHashing(LBStrategy):
             server = self.hash_ring[server_hash]
 
             if server.healthy:
-                print("forwarded ", source_ip, "to ", server.ip)
                 return server
 
-        print("returned none")
         return None
 
     def _hash(self, key):

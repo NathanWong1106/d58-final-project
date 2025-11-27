@@ -14,7 +14,7 @@ SERVERS = []
 BUF_SIZE = 4096
 TIMEOUT = 5
 session_map = {}
-STICKY_TIMEOUT = 15
+STICKY_TIMEOUT = 5
 
 SHED_RESPONSE = (
     503, "The server is currently experiencing high load, please try again later.")
@@ -118,11 +118,10 @@ class LoadBalancer(object):
                 (server, last_used) = session_map.get(sid, (None, 0))
                 if (time.time() - last_used >= STICKY_TIMEOUT):
                     server = None
-            if server is None:
+            if server is None or not server.is_healthy():
                 server = self.lb_strategy.get_server(source_ip=client_addr[0])
 
             if server is not None:
-                # print(f'{client_addr[0]} to {server.ip}')
                 self.update_connection_count(server, is_connection=True)
                 session_map[sid] = (server, time.time())
                 server.additional_info['active_connections'] = server.additional_info.get(
