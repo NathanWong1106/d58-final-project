@@ -113,8 +113,6 @@ class LoadBalancer(object):
                 return
         
         with self.server_lock:
-            self.print_debug(
-                f"Servers status: {[{'name': s.name, 'healthy': s.healthy, 'avg_rtt': s.get_additional_info('health_check_info').get_average_rtt()} for s in self.servers]}")
             if self.opts.load_shedding_enabled and self.load_shedder.should_shed():
                 self.print_debug(
                     f"Shedding load, rejecting connection from {client_addr}")
