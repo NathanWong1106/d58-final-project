@@ -95,13 +95,23 @@ class LoadBalancer(object):
 
     def accept_connection(self):
         client_sock, client_addr = self.lb_socket.accept()
-        req = client_sock.recv(BUF_SIZE, socket.MSG_PEEK).decode()
 
         # Get the server to forward to - acquire lock since health check may modify server states
         server = None
+        sid = None
+        req = None
 
-        # If client does not sent SID, use their IP instead for sticky
-        sid = self.get_sid(req) or client_addr[0]
+        if self.opts.sticky_sessions:
+            try:
+                req = client_sock.recv(BUF_SIZE, socket.MSG_PEEK).decode()
+                # If client does not sent SID, use their IP instead for sticky
+                sid = self.get_sid(req) or client_addr[0]
+            except Exception as e:
+                self.print_debug(
+                    f"Error receiving initial data from client {client_addr}, closing connection: {e}")
+                client_sock.close()
+                return
+        
         with self.server_lock:
             self.print_debug(
                 f"Servers status: {[{'name': s.name, 'healthy': s.healthy, 'avg_rtt': s.get_additional_info('health_check_info').get_average_rtt()} for s in self.servers]}")

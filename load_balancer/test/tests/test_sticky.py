@@ -17,9 +17,8 @@ def send_requests(c, lock, results, lb, sid):
         # send a simple HTTP request to the LB and capture headers+body
         resp = c.cmd(
             f'curl --max-time 5 -i -H \'SID: {sid}\' http://{lb.IP()}')
-        latency = time.time() - start_time
         with lock:
-            results.append(RequestResult(resp, latency))
+            results.append(RequestResult(resp, start_time, time.time()))
 
         # tiny pause to create a stream of requests
         time.sleep(0.2)
@@ -37,9 +36,8 @@ def send_reconnect(c, lock, results, lb, sid):
         # send a simple HTTP request to the LB and capture headers+body
         resp = c.cmd(
             f'curl --max-time 5 -i -H \'SID: {sid}\' http://{lb.IP()}')
-        latency = time.time() - start_time
         with lock:
-            results.append(RequestResult(resp, latency))
+            results.append(RequestResult(resp, start_time, time.time()))
 
         # tiny pause to create a stream of requests
         time.sleep(0.2)

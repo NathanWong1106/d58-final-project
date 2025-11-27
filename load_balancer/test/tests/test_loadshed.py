@@ -1,7 +1,7 @@
 from test.setup.topos import MultiClientMultiServer
 import time
 import threading
-import typing
+from test.tests.req_result_obj import RequestResult, results_summary, plot_latency_over_time, plot_successful_requests_over_time, plot_errors_over_time
 
 # Note that this test is fairly flaky due to the nature of timing and load shedding.
 # Results may vary between runs. Taking the average between runs is recommended.
@@ -37,47 +37,14 @@ CLIENT_CPU = 0.4 # CPU allocation for all clients
 NUM_SERVERS = 3
 SERVER_CPUS = [0.03, 0.03, 0.03] # CPU allocation for each server (in this config, servers are under-provisioned and can handle at most 5-7 connections total simultaneously)
 
-class RequestResult:
-    def __init__(self, response: str, latency: float):
-        self.response = response
-        self.latency = latency
-
-    def is_successful(self):
-        return "200" in self.response
-    
-    def is_timeout(self):
-        return "504" in self.response or "timed out" in self.response.lower()
-    
-    def was_shed(self):
-        return "503" in self.response and "high load" in self.response
-    
-    def was_server_error(self):
-        return "502" in self.response or "500" in self.response or ("503" in self.response and "No healthy servers" in self.response)
-    
-def results_summary(results: typing.List[RequestResult]):
-    total_requests = len(results)
-    total_successful_requests = sum(1 for r in results if r.is_successful())
-    total_timeouts = sum(1 for r in results if r.is_timeout())
-    total_shed = sum(1 for r in results if r.was_shed())
-    total_server_errors = sum(1 for r in results if r.was_server_error())
-    avg_successful_latency = sum(r.latency for r in results if r.is_successful()) / total_successful_requests if total_successful_requests > 0 else 0.0
-
-    print(f"Total requests sent: {total_requests}"
-          f"\nTotal successful responses (200): {total_successful_requests}"
-            f"\nTotal timeouts (504 or curl timeout): {total_timeouts}"
-            f"\nTotal shed responses (503): {total_shed}"
-            f"\nTotal server errors (502/500): {total_server_errors}"
-            f"\nAverage latency of successful requests: {avg_successful_latency:.3f} seconds")
-
 def send_requests(c, lock, results, lb):
     end_time = time.time() + LOAD_DURATION
     while time.time() < end_time:
         start_time = time.time()
         # send a simple HTTP request to the LB and capture headers+body
         resp = c.cmd(f'curl --max-time 6 -i http://{lb.IP()}')
-        latency = time.time() - start_time
         with lock:
-            results.append(RequestResult(resp, latency))
+            results.append(RequestResult(resp, start_time, time.time()))
         
         # tiny pause to create a stream of requests
         time.sleep(0.02)
@@ -202,3 +169,7 @@ if __name__ == "__main__":
 
     print("\n--- Exponential Load Shedding Test Results ---")
     results_summary(exp_shed_test_results)
+
+    plot_latency_over_time('test/results/load_shedding_latency_over_time.png', ['No Shedding', 'Load Shedding (Hard)'], no_shed_test_results, shed_test_results)
+    plot_successful_requests_over_time('test/results/load_shedding_status_over_time.png', ['No Shedding', 'Load Shedding (Hard)'], no_shed_test_results, shed_test_results)
+    plot_errors_over_time('test/results/load_shedding_errors_over_time.png', ['No Shedding', 'Load Shedding (Hard)'], no_shed_test_results, shed_test_results)
