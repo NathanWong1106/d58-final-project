@@ -1,7 +1,7 @@
 from test.setup.topos import MultiClientMultiServer
 import time
 import threading
-from test.tests.req_result_obj import RequestResult, results_summary
+from test.tests.req_result_obj import RequestResult, results_summary, plot_latency_over_time, plot_successful_requests_over_time, plot_errors_over_time
 from mininet.log import lg
 from mininet.cli import CLI
 
@@ -72,4 +72,12 @@ def test_reroute():
 
 if __name__ == "__main__":
     lg.setLogLevel('info')
-    results_summary(test_reroute())
+    results = test_reroute()
+    results_summary(results)
+
+    plot_latency_over_time('test/results/rerouting_latency_over_time.png', [
+                           'Server Down Reroute'], results)
+    plot_successful_requests_over_time('test/results/rerouting_status_over_time.png', [
+        'Server Down Reroute'], results)
+    plot_errors_over_time('test/results/rerouting_errors_over_time.png', [
+        'Server Down Reroute'], results)

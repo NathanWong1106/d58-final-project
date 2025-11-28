@@ -1,7 +1,7 @@
 from test.setup.topos import MultiClientMultiServer
 import time
 import threading
-from test.tests.req_result_obj import RequestResult, results_summary
+from test.tests.req_result_obj import RequestResult, results_summary, plot_latency_over_time, plot_successful_requests_over_time, plot_errors_over_time
 from load_balancer import STICKY_TIMEOUT
 from mininet.log import lg
 from mininet.cli import CLI
@@ -105,4 +105,12 @@ def test_sticky():
 
 if __name__ == "__main__":
     lg.setLogLevel('info')
-    results_summary(test_sticky())
+    results = test_sticky()
+    results_summary(results)
+
+    plot_latency_over_time('test/results/sticky_latency_over_time.png', [
+                           'Sticky Session'], results)
+    plot_successful_requests_over_time('test/results/sticky_status_over_time.png', [
+        'Sticky Session'], results)
+    plot_errors_over_time('test/results/sticky_errors_over_time.png', [
+        'Sticky Session'], results)
