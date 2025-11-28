@@ -2,6 +2,9 @@ import sys
 from strategies.lb_strategy import LBStrategy
 from strategies.round_robin_strategy import RoundRobinStrategy
 from strategies.consistent_hash_strategy import ConsistentHashing
+from strategies.weighted_round_robin_strategy import WeightedRoundRobinStrategy
+from strategies.least_connections_strategy import LeastConnectionsStrategy
+from strategies.least_response_time_strategy import LeastResponseTimeStrategy
 from load_balancer import LoadBalancer, LBOpts
 from load_shedder import LoadShedParams
 from serv_obj import Server
