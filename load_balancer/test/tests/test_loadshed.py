@@ -170,6 +170,6 @@ if __name__ == "__main__":
     print("\n--- Exponential Load Shedding Test Results ---")
     results_summary(exp_shed_test_results)
 
-    plot_latency_over_time('test/results/load_shedding_latency_over_time.png', ['No Shedding', 'Load Shedding (Hard)'], no_shed_test_results, shed_test_results)
-    plot_successful_requests_over_time('test/results/load_shedding_status_over_time.png', ['No Shedding', 'Load Shedding (Hard)'], no_shed_test_results, shed_test_results)
-    plot_errors_over_time('test/results/load_shedding_errors_over_time.png', ['No Shedding', 'Load Shedding (Hard)'], no_shed_test_results, shed_test_results)
+    plot_latency_over_time('test/results/load_shedding_latency_over_time.png', ['No Shedding', 'Load Shedding (Hard)', 'Load Shedding (Exponential)'], no_shed_test_results, shed_test_results, exp_shed_test_results)
+    plot_successful_requests_over_time('test/results/load_shedding_status_over_time.png', ['No Shedding', 'Load Shedding (Hard)', 'Load Shedding (Exponential)'], no_shed_test_results, shed_test_results, exp_shed_test_results)
+    plot_errors_over_time('test/results/load_shedding_errors_over_time.png', ['No Shedding', 'Load Shedding (Hard)', 'Load Shedding (Exponential)'], no_shed_test_results, shed_test_results, exp_shed_test_results)
