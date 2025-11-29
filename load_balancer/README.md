@@ -1,5 +1,7 @@
 ### Setup
-This folder should me mounted as a volume (or copied) into the Mininet Virtual Machine. Once mounted or copied, install the necessary dependencies using `sudo ./setup.sh`
+This folder should be mounted as a volume (or copied) into the Mininet Virtual Machine. They can be found here: https://github.com/mininet/mininet/releases/
+
+Once mounted or copied, install the necessary dependencies using `sudo ./setup.sh`
 
 ### Running tests
 You should be in the root directory of the project (`load_balancer`)
