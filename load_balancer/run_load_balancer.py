@@ -41,7 +41,11 @@ if __name__ == "__main__":
 
         servers = []
         for serv in config["servers"]:
-            servers.append(Server(serv["name"], serv["ip"], serv["port"]))
+            server = Server(serv["name"], serv["ip"], serv["port"])
+            # Set weight if specified in config
+            if "weight" in serv:
+                server.set_additional_info("weight", serv["weight"])
+            servers.append(server)
 
         lb_strategy = get_strategy(config.get("strategy", "round_robin"), servers)
         if lb_strategy is None:
