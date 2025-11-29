@@ -27,7 +27,7 @@ We implement a simple application load balancer, a set of load balancing strateg
 
 ## Configuration/Options
 We define the following JSON configuration format:
-```json
+```js
 {
   "load_balancer_ip": "10.0.0.254", /* IP of the LB host */
   "load_balancer_port": 80, /* What port the LB is served on */
@@ -78,7 +78,7 @@ We define the following JSON configuration format:
 sudo python3 -m test.tests.test_round_robin
 ```
 
-Result summaries and generated plots will be written to `load_balancer/test/results/`.
+Result summaries will be printed to console and generated plots will be written to `load_balancer/test/results/`.
 
 ### Development Notes
 - The project was designed to work in a Mininet VM environment - see `load_balancer/README.md` for VM mounting and setup instructions.
