@@ -1,4 +1,6 @@
 class Server:
+    """ Representation of a server object with health status and additional information. """
+
     def __init__(self, name, ip, port, healthy=True):
         self.name = name
         self.ip = ip

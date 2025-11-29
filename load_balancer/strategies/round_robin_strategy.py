@@ -3,6 +3,8 @@ from serv_obj import Server
 import typing
 
 class RoundRobinStrategy(LBStrategy):
+    """ Load balancing strategy that selects servers in a round-robin, skipping unhealthy servers. """
+
     def __init__(self, servers: typing.List[Server]):
         self.servers = servers
         self.current_index = 0

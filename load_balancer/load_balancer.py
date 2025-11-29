@@ -84,7 +84,7 @@ class LoadBalancer(object):
             read_sockets, _, _ = select.select([self.lb_socket], [], [])
             for sock in read_sockets:
                 if sock == self.lb_socket:
-                    # Create thread to handle new connection
+                    # New incoming connection
                     self.accept_connection()
 
     def get_sid(self, req):
@@ -94,6 +94,8 @@ class LoadBalancer(object):
         return None
 
     def accept_connection(self):
+        """ Accept a new client connection, determine the appropriate server to forward to using the configured load balancing strategy, and spawn a thread to handle the connection. """
+        
         client_sock, client_addr = self.lb_socket.accept()
 
         # Get the server to forward to - acquire lock since health check may modify server states
@@ -149,6 +151,9 @@ class LoadBalancer(object):
             client_sock, server_sock, server)).start()
 
     def handle_connection(self, client_sock: socket.socket, server_sock: socket.socket, server: Server):
+        """ Handle the forwarding of data between client socket and the given server. Creates the server socket connection. """
+
+        # Establish connection to the selected server and if it fails, close client connection and send error
         try:
             server_sock.connect((server.ip, server.port))
         except Exception as e:
@@ -167,8 +172,11 @@ class LoadBalancer(object):
 
         while True:
             try:
+                # Blocks until one or more sockets (fd) are ready for IO
                 read_sockets, _, _ = select.select(
                     [client_sock, server_sock], [], [])
+                
+                # Forward data from client to server and vice versa (depending on which socket is ready)
                 for sock in read_sockets:
                     data = sock.recv(BUF_SIZE)
                     self.print_debug(
@@ -194,6 +202,7 @@ class LoadBalancer(object):
                 return
 
     def close_connection(self, sock: socket.socket, server: Server, is_error=False):
+        """ Close the client or server socket and update connection counts. """
         sock.close()
         with self.server_lock:
             self.update_connection_count(server, is_connection=False)
@@ -205,6 +214,8 @@ class LoadBalancer(object):
                 f"Closed connection for server {server.name} who has active connections: {server.additional_info.get('active_connections', 0)}")
 
     def update_connection_count(self, server: Server, is_connection: bool):
+        """ Update the active connection count for the server and the load shedder. """
+
         if is_connection:
             server.additional_info['active_connections'] = server.additional_info.get(
                 'active_connections', 0) + 1
@@ -216,6 +227,7 @@ class LoadBalancer(object):
             self.load_shedder.decrement_connections()
 
     def try_send_error(self, client_sock: socket.socket, status_code: int, msg: str):
+        """ Attempt to send an HTTP error response to the client. """
         try:
             http_response = HTTPResponse(
                 status_code, msg).get_response_string()

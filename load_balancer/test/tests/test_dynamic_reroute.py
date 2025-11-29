@@ -23,6 +23,8 @@ def send_requests(c, lock, results, lb):
         time.sleep(0.4)
 
 def test_reroute():
+    """ Test that requests are rerouted when a server goes down and comes back up for hashing LB strategy. """
+
     topo = MultiClientMultiServer(num_clients=3, num_servers=3,
                                   lb_json='test/setup/hashing_test_lb.json')
     topo.start_backend()

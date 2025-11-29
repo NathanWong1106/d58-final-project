@@ -2,6 +2,8 @@ import typing
 import matplotlib.pyplot as plt
 
 class RequestResult:
+    """ Encapsulates the result of a single request, including response content, start and end times, and methods to classify the result. """
+
     def __init__(self, response: str, start: float, end: float):
         self.response = response
         self.start = start
@@ -22,6 +24,8 @@ class RequestResult:
 
 
 def results_summary(results: typing.List[RequestResult]):
+    """ Print a summary of the given list of RequestResult objects. """
+
     total_requests = len(results)
     total_successful_requests = sum(1 for r in results if r.is_successful())
     total_timeouts = sum(1 for r in results if r.is_timeout())
