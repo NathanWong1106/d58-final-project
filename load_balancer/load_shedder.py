@@ -16,7 +16,7 @@ class LoadShedder:
         self.conn_lock = threading.Lock()
 
     def should_shed(self):
-        if self.opts.strategy == "exponential": # Shedding probability increases exponentially with number of connections
+        if self.opts.strategy == "exponential":
             threshold = self.opts.sim_conn_threshold
             if self.simultaneous_connections < threshold:
                 return False
@@ -25,7 +25,7 @@ class LoadShedder:
                 prob = min(1, 1 - math.exp(-K * (self.simultaneous_connections - threshold)))
                 return random.random() < prob
 
-        else:
+        else: # default to simple threshold shedding ("hard" shedding)
             return self.simultaneous_connections >= self.opts.sim_conn_threshold
     
     def increment_connections(self):

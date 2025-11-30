@@ -2,6 +2,9 @@ import sys
 from strategies.lb_strategy import LBStrategy
 from strategies.round_robin_strategy import RoundRobinStrategy
 from strategies.consistent_hash_strategy import ConsistentHashing
+from strategies.weighted_round_robin_strategy import WeightedRoundRobinStrategy
+from strategies.least_connections_strategy import LeastConnectionsStrategy
+from strategies.least_response_time_strategy import LeastResponseTimeStrategy
 from load_balancer import LoadBalancer, LBOpts
 from load_shedder import LoadShedParams
 from serv_obj import Server
@@ -9,7 +12,7 @@ import json
 import typing
 
 
-def get_strategy(strategy_name: str, servers: typing.List[Server], *, replica_count=10) -> LBStrategy:
+def get_strategy(strategy_name: str, servers: typing.List[Server], *, replica_count=100) -> LBStrategy:
     if strategy_name == "round_robin":
         return RoundRobinStrategy(servers)
     elif strategy_name == "hash":
@@ -38,7 +41,11 @@ if __name__ == "__main__":
 
         servers = []
         for serv in config["servers"]:
-            servers.append(Server(serv["name"], serv["ip"], serv["port"]))
+            server = Server(serv["name"], serv["ip"], serv["port"])
+            # Set weight if specified in config
+            if "weight" in serv:
+                server.set_additional_info("weight", serv["weight"])
+            servers.append(server)
 
         lb_strategy = get_strategy(config.get("strategy", "round_robin"), servers)
         if lb_strategy is None:

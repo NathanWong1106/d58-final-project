@@ -2,8 +2,6 @@ import socket
 import http.server, socketserver
 import sys
 
-MSG = "Hello from server!"
-
 class SimpleServer(http.server.BaseHTTPRequestHandler):
   def do_GET(self):
     if (self.path == "/health"):
@@ -29,6 +27,7 @@ class SimpleServer(http.server.BaseHTTPRequestHandler):
       self.wfile.write(body.encode())
     
 PORT = 8080
+MSG = "Hello from server!"
 if len(sys.argv) > 2:
   PORT = int(sys.argv[1]) 
   MSG = sys.argv[2]

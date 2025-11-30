@@ -1,27 +1,53 @@
 from test.setup.topos import MultiClientMultiServer
 import time
+import threading
+from test.tests.req_result_obj import RequestResult, results_summary, plot_latency_over_time, plot_successful_requests_over_time, plot_errors_over_time
 from mininet.log import lg
 from mininet.cli import CLI
 
+DURATION = 20
+
+
+def send_requests(c, lock, results, lb):
+    end_time = time.time() + DURATION
+    while time.time() < end_time:
+        start_time = time.time()
+
+        # send a simple HTTP request to the LB and capture headers+body
+        resp = c.cmd(
+            f'curl --max-time 5 -i http://{lb.IP()}')
+        with lock:
+            results.append(RequestResult(resp, start_time, time.time()))
+
+        # tiny pause to create a stream of requests
+        time.sleep(0.2)
+
 
 def test_reroute():
-    topo = MultiClientMultiServer()
+    """ Test that requests are rerouted when a server goes down and comes back up for hashing LB strategy. """
+
+    topo = MultiClientMultiServer(num_clients=5, num_servers=5,
+                                  lb_json='test/setup/hashing_test_lb.json')
     topo.start_backend()
     topo.net.start()
 
-    time.sleep(2)
+    time.sleep(10)
 
     clients = topo.get_clients()
-    lb = topo.get_load_balancer()
-    servers = topo.get_servers()
 
     time.sleep(2)  # Wait for setup
 
-    # Client sends requests every second for 20 seconds
-    print("Sending reuqests to LB")
+    # Shared results and counters
+    lock = threading.Lock()
+    results = []
+
+    print("Starting reroute test")
+    threads = []
     for client in clients:
-        client.cmd(
-            f'timeout 30s bash -c "while true; do curl http://{lb.IP()}; sleep 3; done" &')
+        t = threading.Thread(target=send_requests, args=(
+            client, lock, results, topo.get_load_balancer()))
+        t.start()
+        threads.append(t)
 
     time.sleep(5)  # Let some requests go through
 
@@ -29,16 +55,30 @@ def test_reroute():
     topo.net.get('s3').cmd('ifconfig s3-eth0 down')
     print("Stopped server 3 to test rerouting")
 
-    time.sleep(15)  # Let more requests go through
+    time.sleep(10)  # Let more requests go through
 
     topo.net.get('s3').cmd('ifconfig s3-eth0 up')
     print("Started server 3 to test rerouting")
 
-    time.sleep(11)
+    time.sleep(6)
+
+    for t in threads:
+        t.join()
 
     topo.net.stop()
+    print("Test completed.")
+
+    return results
 
 
 if __name__ == "__main__":
     lg.setLogLevel('info')
-    test_reroute()
+    results = test_reroute()
+    results_summary(results)
+
+    plot_latency_over_time('test/results/rerouting_latency_over_time.png', [
+                           'Server Down Reroute'], results)
+    plot_successful_requests_over_time('test/results/rerouting_status_over_time.png', [
+        'Server Down Reroute'], results)
+    plot_errors_over_time('test/results/rerouting_errors_over_time.png', [
+        'Server Down Reroute'], results)

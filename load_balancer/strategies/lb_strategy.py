@@ -1,4 +1,6 @@
 class LBStrategy:
+    """ Base class for load balancing strategies. """
+
     def __init__(self, servers):
         self.servers = servers
 

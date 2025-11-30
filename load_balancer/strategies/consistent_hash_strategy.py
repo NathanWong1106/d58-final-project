@@ -10,12 +10,13 @@ class ConsistentHashing(LBStrategy):
     Source IP hashing using hash ring to prevent remapping when servers change
     """
 
-    def __init__(self, servers: typing.List[Server], replica_count=10):
+    def __init__(self, servers: typing.List[Server], replica_count=100):
         super().__init__(servers)
         self.hash_ring = dict()
         self.sorted_hash = []
         self.replica_count = replica_count
         for server in servers:
+            # print(server.ip)
             self._hash_server(server)
 
     def _hash_server(self, server: Server):
@@ -42,10 +43,8 @@ class ConsistentHashing(LBStrategy):
             server = self.hash_ring[server_hash]
 
             if server.healthy:
-                print("forwarded ", source_ip, "to ", server.ip)
                 return server
 
-        print("returned none")
         return None
 
     def _hash(self, key):

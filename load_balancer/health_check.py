@@ -21,6 +21,8 @@ class HealthCheckInfo:
         
 
 class HealthCheckService:
+    """ Service that periodically performs health checks on a list of servers. """
+
     def __init__(self, servers: typing.List[Server], server_lock: threading.Lock, interval=3, health_check_path="/health", timeout=1):
         self.servers = servers
         self.server_lock = server_lock
@@ -42,6 +44,8 @@ class HealthCheckService:
         return f"GET {path} HTTP/1.1\r\nHost: {host_ip}\r\nConnection: close\r\n\r\n"
 
     def check_health(self):
+        """ Perform health checks on all servers by sending GET requests to the configured health check path. Updates each server's health status based on the response (or lack thereof). """
+
         for server in self.servers:
             try:
                 start = time.time()
