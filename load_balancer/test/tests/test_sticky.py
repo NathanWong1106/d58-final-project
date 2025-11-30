@@ -27,9 +27,10 @@ def send_requests(c, lock, results, lb, sid):
 
 
 def send_reconnect(c, lock, results, lb, sid):
-    end_time = time.time() + DURATION
+    init_time = time.time()
+    end_time = init_time + DURATION
+    n = 7
     test_sticky = True
-    n = 5
     while time.time() < end_time:
         start_time = time.time()
 
@@ -40,15 +41,16 @@ def send_reconnect(c, lock, results, lb, sid):
             results.append(RequestResult(resp, start_time, time.time()))
 
         # tiny pause to create a stream of requests
-        time.sleep(0.2)
-        if (test_sticky and time.time() > end_time - DURATION + n):
-            time.sleep(STICKY_TIMEOUT+1)
+        if (test_sticky and time.time() > init_time + n):
             test_sticky = False
+            time.sleep(STICKY_TIMEOUT+1)
+        else:
+            time.sleep(0.2)
 
 # Change value of "sticky_sessions" in setup file to view difference
 def test_sticky():
     topo = MultiClientMultiServer(
-        num_clients=5, num_servers=3, lb_json='test/setup/sticky_session_lb.json')
+        num_clients=5, num_servers=5, lb_json='test/setup/sticky_session_lb.json')
     topo.start_backend()
     topo.net.start()
 
@@ -67,13 +69,13 @@ def test_sticky():
 
     print("Starting sticky test")
     threads = []
-    for client in clients[:2]:
+    for client in clients[:3]:
         t = threading.Thread(target=send_requests, args=(
             client, lock, results, topo.get_load_balancer(), sids[str(client)]))
         t.start()
         threads.append(t)
 
-    for client in clients[2:]:
+    for client in clients[3:]:
         t = threading.Thread(target=send_reconnect, args=(
             client, lock, results, topo.get_load_balancer(), sids[str(client)]))
         t.start()

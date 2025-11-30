@@ -12,7 +12,7 @@ import json
 import typing
 
 
-def get_strategy(strategy_name: str, servers: typing.List[Server], *, replica_count=10) -> LBStrategy:
+def get_strategy(strategy_name: str, servers: typing.List[Server], *, replica_count=100) -> LBStrategy:
     if strategy_name == "round_robin":
         return RoundRobinStrategy(servers)
     elif strategy_name == "hash":

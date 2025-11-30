@@ -20,12 +20,13 @@ def send_requests(c, lock, results, lb):
             results.append(RequestResult(resp, start_time, time.time()))
 
         # tiny pause to create a stream of requests
-        time.sleep(0.4)
+        time.sleep(0.2)
+
 
 def test_reroute():
     """ Test that requests are rerouted when a server goes down and comes back up for hashing LB strategy. """
 
-    topo = MultiClientMultiServer(num_clients=3, num_servers=3,
+    topo = MultiClientMultiServer(num_clients=5, num_servers=5,
                                   lb_json='test/setup/hashing_test_lb.json')
     topo.start_backend()
     topo.net.start()
@@ -33,8 +34,6 @@ def test_reroute():
     time.sleep(10)
 
     clients = topo.get_clients()
-    lb = topo.get_load_balancer()
-    servers = topo.get_servers()
 
     time.sleep(2)  # Wait for setup
 
