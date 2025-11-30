@@ -85,3 +85,4 @@ Result summaries will be printed to console and generated plots will be written 
 ### Development Notes
 - The project was designed to work in a Mininet VM environment - see `load_balancer/README.md` for VM mounting and setup instructions.
 - Test results are highly dependent on VM and host resources. Parameters (e.g. load shed threshold, health check intervals, timeouts, etc) may need to change to accomodate the host system.
+- Recommended to use the [VSCode Remote Development Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack) to remote into the VM to see the results graphs
